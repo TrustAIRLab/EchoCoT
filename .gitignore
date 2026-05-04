@@ -1,0 +1,10 @@
+__pycache__/
+.pytest_cache/
+outputs/
+base/
+pytest.ini
+data/
+logs/
+requirements.txt
+results/
+get-pip.py
