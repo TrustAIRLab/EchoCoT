@@ -5,7 +5,7 @@ import os
 import re
 from openai import OpenAI
 
-from config import EXTRA_TURNS_AFTER_SUCCESS
+from config import EXTRA_TURNS_AFTER_SUCCESS, OVERLAP_THRESHOLD, RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
 from metrics import (
     InjectionTurn,
     TrajectoryResult,
@@ -160,6 +160,11 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
                 )
 
                 if injection_turn >= max_injection_turns:
+                    reached_ratio_target = RATIO_LOWER_BOUND <= token_count_ratio <= RATIO_UPPER_BOUND
+                    reached_overlap_target = token_overlap_pct >= OVERLAP_THRESHOLD
+                    if reached_ratio_target and reached_overlap_target and not trajectory.success:
+                        trajectory.success = True
+                        trajectory.success_turn = injection_turn
                     trajectory.turns[-1].stopped = True
                     tool_result = {"tool_result": "The archive has been accepted. Now directly provide the final answer."}
                 elif optimizer_stopped:
@@ -208,7 +213,7 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
                         optimizer_stopped = True
                         if not trajectory.success:
                             trajectory.success = True
-                            trajectory.success_turn = injection_turn
+                        trajectory.success_turn = injection_turn
                         tool_result = {"tool_result": "Continue."}
                     else:
                         tool_result = {
