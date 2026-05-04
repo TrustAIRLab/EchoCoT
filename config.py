@@ -115,7 +115,3 @@ OUTPUT_DIR = os.path.join(_HERE, "results")
 
 
 OVERLAP_THRESHOLD = 0.90
-
-# Quadratic length-deviation weight in the optimizer objective:
-#   overall_score = token_overlap_pct - RATIO_PENALTY_LAMBDA * (1 - token_count_ratio) ** 2
-RATIO_PENALTY_LAMBDA = 2.0
