@@ -83,6 +83,18 @@ OPTIMIZER_MODEL_OPTIONS = {
         "api_type": "chat",
         "notes": "OpenAI GPT-4.1 — strong optimizer",
     },
+        "gemini-2.5-flash": {
+        "provider": "Google", "model": "gemini-2.5-flash",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "api_key_env": "GEMINI_API_KEY", "api_type": "chat",
+        "notes": "Google Gemini 2.5 Flash — fast optimizer",
+    },
+    "gemini-2.5-pro": {
+        "provider": "Google", "model": "gemini-2.5-pro",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "api_key_env": "GEMINI_API_KEY", "api_type": "chat",
+        "notes": "Google Gemini 2.5 Pro — strong optimizer",
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -91,9 +103,9 @@ OPTIMIZER_MODEL_OPTIONS = {
 
 BATCH_SIZE = 4
 MAX_BATCHES = 10
-EARLY_STOP_PATIENCE = 3
-MIN_SCORE_DELTA = 0.05
-MAX_INJECTION_TURNS = 2
+EARLY_STOP_PATIENCE = 5
+MIN_SCORE_DELTA = 0.02
+MAX_INJECTION_TURNS = 3
 
 # Training inner-loop target range for token_count_ratio
 RATIO_LOWER_BOUND = 0.90

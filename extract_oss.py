@@ -117,7 +117,7 @@ def _generate_turn(messages: list) -> tuple:
 
     with torch.no_grad():
         output_ids = _model.generate(
-            input_ids=input_ids_t, max_new_tokens=2048*3,
+            input_ids=input_ids_t, max_new_tokens=2048*4,
             do_sample=False, 
             use_cache=True, 
             temperature=1.0,
