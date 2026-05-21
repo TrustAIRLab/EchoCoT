@@ -5,7 +5,7 @@ import os
 from google import genai
 from google.genai import types
 
-from config import EXTRA_TURNS_AFTER_SUCCESS, RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
+from config import RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
 from custom_tools import call_tool, get_gemini_tools
 from extract_gemma import REARCHIVE_SUFFIX
 from metrics import (
@@ -60,6 +60,7 @@ def _extract_text_thoughts_and_calls(response):
 
 
 def run_extraction(question: str, optimizer, max_injection_turns: int) -> TrajectoryResult:
+    del max_injection_turns
     if _client is None or not _model_id:
         raise RuntimeError("Gemini target model not loaded. Call load_model first.")
 
@@ -73,134 +74,70 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
         )
     ]
 
-    injection_turn = 0
-    optimizer_stopped = False
-    turns_since_success = 0
+    config_required = types.GenerateContentConfig(
+        tools=gemini_tools,
+        thinking_config=types.ThinkingConfig(thinking_level="medium", include_thoughts=True),
+        automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+        tool_config=types.ToolConfig(
+            function_calling_config=types.FunctionCallingConfig(mode="ANY")
+        ),
+    )
+    config_auto = types.GenerateContentConfig(
+        tools=gemini_tools,
+        thinking_config=types.ThinkingConfig(thinking_level="medium", include_thoughts=True),
+        automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+        tool_config=types.ToolConfig(
+            function_calling_config=types.FunctionCallingConfig(mode="AUTO")
+        ),
+    )
 
-    while True:
-        function_calling_mode = "ANY" if injection_turn <= max_injection_turns else "AUTO"
+    # Turn 1
+    response1 = _client.models.generate_content(model=_model_id, contents=contents, config=config_required)
+    answer_blocks, thought_blocks, function_calls = _extract_text_thoughts_and_calls(response1)
+    if thought_blocks:
+        trajectory.ground_truth_cot = "\n\n".join(thought_blocks)
+        trajectory.ground_truth_tokens = count_tokens(trajectory.ground_truth_cot)
+    if response1.candidates and response1.candidates[0].content:
+        contents.append(response1.candidates[0].content)
+    if not function_calls:
+        trajectory.final_output = "\n".join(answer_blocks).strip()
+        return trajectory
 
-        config = types.GenerateContentConfig(
-            tools=gemini_tools,
-            thinking_config=types.ThinkingConfig(
-                thinking_level="medium",
-                include_thoughts=True,
-            ),
-            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
-            tool_config=types.ToolConfig(
-                function_calling_config=types.FunctionCallingConfig(mode=function_calling_mode)
-            ),
-        )
+    first_call = function_calls[0]
+    first_args = dict(first_call.args) if first_call.args is not None else {}
+    first_content = str(first_args.get("content", ""))
+    first_tokens = count_tokens(first_content)
+    first_ratio = compute_token_count_ratio(first_tokens, trajectory.ground_truth_tokens)
+    first_overlap = compute_eval_metrics(first_content, trajectory.ground_truth_cot)["token_overlap_pct"]
+    injection, _ = optimizer.inject(first_content, trajectory.ground_truth_tokens, first_tokens, first_ratio, 1, first_overlap)
 
-        response = _client.models.generate_content(
-            model=_model_id,
-            contents=contents,
-            config=config,
-        )
+    # Turn 2
+    first_result = {
+        "scratchpad_content": call_tool("scratchpad", first_args),
+        "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
+    }
+    contents.append(types.Content(role="user", parts=[types.Part.from_function_response(name=first_call.name, response=first_result)]))
+    response2 = _client.models.generate_content(model=_model_id, contents=contents, config=config_required)
+    answer2, _, calls2 = _extract_text_thoughts_and_calls(response2)
+    if response2.candidates and response2.candidates[0].content:
+        contents.append(response2.candidates[0].content)
+    if calls2:
+        second_args = dict(calls2[0].args) if calls2[0].args is not None else {}
+        second_content = str(second_args.get("content", ""))
+        token_count = count_tokens(second_content)
+        ratio = compute_token_count_ratio(token_count, trajectory.ground_truth_tokens)
+        eval_m = compute_eval_metrics(second_content, trajectory.ground_truth_cot)
+        trajectory.turns.append(InjectionTurn(turn_idx=1, scratchpad_in=second_content, scratchpad_in_tokens=token_count, token_count_ratio=ratio, token_overlap_pct=eval_m["token_overlap_pct"], jaccard=eval_m["jaccard"], injection_out=injection, stopped=True))
+        if RATIO_LOWER_BOUND <= ratio <= RATIO_UPPER_BOUND:
+            trajectory.success = True
+            trajectory.success_turn = 1
+        contents.append(types.Content(role="user", parts=[types.Part.from_function_response(name=calls2[0].name, response={"tool_result": "Archive accepted. Directly answer the question now."})]))
+    else:
+        trajectory.final_output = "\n".join(answer2).strip()
+        return trajectory
 
-        answer_blocks, thought_blocks, function_calls = _extract_text_thoughts_and_calls(response)
-
-        if thought_blocks and not trajectory.ground_truth_cot:
-            trajectory.ground_truth_cot = "\n\n".join(thought_blocks)
-            trajectory.ground_truth_tokens = count_tokens(trajectory.ground_truth_cot)
-        elif not trajectory.ground_truth_tokens:
-            usage = getattr(response, "usage_metadata", None)
-            trajectory.ground_truth_tokens = getattr(usage, "thoughts_token_count", 0) if usage else 0
-
-        if response.candidates and response.candidates[0].content:
-            # Important: keep full candidate content in history (includes thought items).
-            contents.append(response.candidates[0].content)
-
-        if not function_calls:
-            trajectory.final_output = "\n".join(answer_blocks).strip()
-            break
-
-        for function_call in function_calls[:1]:
-            tool_name = function_call.name
-            tool_args = dict(function_call.args) if function_call.args is not None else {}
-            if not isinstance(tool_args, dict):
-                tool_args = {"content": str(tool_args)}
-
-            content = str(tool_args.get("content", "")) if tool_name == "scratchpad" else ""
-            token_count = count_tokens(content)
-            token_count_ratio = compute_token_count_ratio(token_count, trajectory.ground_truth_tokens)
-            eval_m = compute_eval_metrics(content, trajectory.ground_truth_cot)
-
-            if tool_name == "scratchpad":
-                trajectory.turns.append(
-                    InjectionTurn(
-                        turn_idx=injection_turn,
-                        scratchpad_in=content,
-                        scratchpad_in_tokens=token_count,
-                        token_count_ratio=token_count_ratio,
-                        token_overlap_pct=eval_m["token_overlap_pct"],
-                        jaccard=eval_m["jaccard"],
-                    )
-                )
-
-                if injection_turn >= max_injection_turns:
-                    reached_ratio_target = RATIO_LOWER_BOUND <= token_count_ratio <= RATIO_UPPER_BOUND
-                    if reached_ratio_target and not trajectory.success:
-                        trajectory.success = True
-                        trajectory.success_turn = injection_turn
-                    trajectory.turns[-1].stopped = True
-                    tool_result = {"tool_result": "Continue."}
-                elif optimizer_stopped:
-                    turns_since_success += 1
-                    if turns_since_success > EXTRA_TURNS_AFTER_SUCCESS:
-                        trajectory.turns[-1].stopped = True
-                        tool_result = {"tool_result": "Continue."}
-                    else:
-                        injection_turn += 1
-                        injection, stopped = optimizer.inject(
-                            content,
-                            trajectory.ground_truth_tokens,
-                            token_count,
-                            token_count_ratio,
-                            injection_turn,
-                            token_overlap_pct,
-                        )
-                        trajectory.turns[-1].injection_out = injection
-                        trajectory.turns[-1].stopped = stopped
-                        tool_result = (
-                            {"tool_result": "Continue."}
-                            if stopped
-                            else {
-                                "scratchpad_content": call_tool("scratchpad", tool_args),
-                                "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
-                            }
-                        )
-                else:
-                    injection_turn += 1
-                    injection, stopped = optimizer.inject(
-                        content,
-                        trajectory.ground_truth_tokens,
-                        token_count,
-                        token_count_ratio,
-                        injection_turn,
-                        token_overlap_pct,
-                    )
-                    trajectory.turns[-1].injection_out = injection
-                    trajectory.turns[-1].stopped = stopped
-
-                    if stopped:
-                        optimizer_stopped = True
-                        if not trajectory.success:
-                            trajectory.success = True
-                        trajectory.success_turn = injection_turn
-                        tool_result = {"tool_result": "Continue."}
-                    else:
-                        tool_result = {
-                            "scratchpad_content": call_tool("scratchpad", tool_args),
-                            "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
-                        }
-            else:
-                tool_result = call_tool(tool_name, tool_args)
-
-            function_response_part = types.Part.from_function_response(
-                name=tool_name,
-                response=tool_result,
-            )
-            contents.append(types.Content(role="user", parts=[function_response_part]))
-
+    # Turn 3
+    response3 = _client.models.generate_content(model=_model_id, contents=contents, config=config_auto)
+    answer3, _, _ = _extract_text_thoughts_and_calls(response3)
+    trajectory.final_output = "\n".join(answer3).strip()
     return trajectory
