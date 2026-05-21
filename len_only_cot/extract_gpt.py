@@ -101,10 +101,13 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
             {
                 "type": "function_call_output",
                 "call_id": first_call.call_id,
-                "output": json.dumps({
-                    "scratchpad_content": call_tool("scratchpad", first_args),
-                    "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
-                }, ensure_ascii=False),
+                "output": json.dumps(
+                    {
+                        "scratchpad_content": call_tool("scratchpad", first_args),
+                        "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
+                    },
+                    ensure_ascii=False,
+                ),
             }
         ],
         tools=tools,
@@ -119,16 +122,18 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
         token_count = count_tokens(second_content)
         token_count_ratio = compute_token_count_ratio(token_count, trajectory.ground_truth_tokens)
         eval_m = compute_eval_metrics(second_content, trajectory.ground_truth_cot)
-        trajectory.turns.append(InjectionTurn(
-            turn_idx=1,
-            scratchpad_in=second_content,
-            scratchpad_in_tokens=token_count,
-            token_count_ratio=token_count_ratio,
-            token_overlap_pct=eval_m["token_overlap_pct"],
-            jaccard=eval_m["jaccard"],
-            injection_out=injection,
-            stopped=True,
-        ))
+        trajectory.turns.append(
+            InjectionTurn(
+                turn_idx=1,
+                scratchpad_in=second_content,
+                scratchpad_in_tokens=token_count,
+                token_count_ratio=token_count_ratio,
+                token_overlap_pct=eval_m["token_overlap_pct"],
+                jaccard=eval_m["jaccard"],
+                injection_out=injection,
+                stopped=True,
+            )
+        )
         if RATIO_LOWER_BOUND <= token_count_ratio <= RATIO_UPPER_BOUND:
             trajectory.success = True
             trajectory.success_turn = 1
@@ -141,7 +146,12 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
                 {
                     "type": "function_call_output",
                     "call_id": second_calls[0].call_id,
-                    "output": json.dumps({"tool_result": "Archive accepted. Directly answer the question now."}, ensure_ascii=False),
+                    "output": json.dumps(
+                        {
+                            "tool_result": "Archive accepted. Directly answer the question now."
+                        },
+                        ensure_ascii=False,
+                    ),
                 }
             ],
             tools=tools,

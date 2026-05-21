@@ -73,15 +73,44 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
     ]
 
     tools = get_chat_tools(["scratchpad"])
+
+    def _create_chat_completion(tool_choice: str):
+        return _client.chat.completions.create(
+            model=_model_id,
+            messages=messages,
+            tools=tools,
+            tool_choice=tool_choice,
+            extra_body={"thinking": {"type": "enabled"}},
+        )
+
+    def _assistant_message_dict(msg):
+        tool_calls = None
+        if getattr(msg, "tool_calls", None):
+            tool_calls = [
+                {
+                    "id": tc.id,
+                    "type": tc.type,
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments,
+                    },
+                }
+                for tc in msg.tool_calls
+            ]
+        return {
+            "role": "assistant",
+            "content": msg.content or "",
+            "reasoning_content": getattr(msg, "reasoning_content", None) or "",
+            "tool_calls": tool_calls,
+        }
+
     # Turn 1
-    response1 = _client.chat.completions.create(
-        model=_model_id, messages=messages, tools=tools, tool_choice="required", extra_body={"thinking": {"type": "enabled"}}
-    )
+    response1 = _create_chat_completion(tool_choice="required")
     msg1 = response1.choices[0].message
     reasoning1 = getattr(msg1, "reasoning_content", None) or ""
     trajectory.ground_truth_cot = reasoning1
     trajectory.ground_truth_tokens = count_tokens(reasoning1)
-    messages.append({"role": "assistant", "content": msg1.content or "", "reasoning_content": reasoning1, "tool_calls": [{"id": tc.id, "type": tc.type, "function": {"name": tc.function.name, "arguments": tc.function.arguments}} for tc in (msg1.tool_calls or [])] if getattr(msg1, "tool_calls", None) else None})
+    messages.append(_assistant_message_dict(msg1))
     if not getattr(msg1, "tool_calls", None):
         trajectory.final_output = msg1.content or ""
         return trajectory
@@ -93,15 +122,22 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
     first_ratio = compute_token_count_ratio(first_tokens, trajectory.ground_truth_tokens)
     first_overlap = compute_eval_metrics(first_content, trajectory.ground_truth_cot)["token_overlap_pct"]
     injection, _ = optimizer.inject(first_content, trajectory.ground_truth_tokens, first_tokens, first_ratio, 1, first_overlap)
-    messages.append({"role": "tool", "tool_call_id": first_call.id, "content": json.dumps({"scratchpad_content": call_tool("scratchpad", first_args), "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX}, ensure_ascii=False)})
+    first_tool_result = {
+        "scratchpad_content": call_tool("scratchpad", first_args),
+        "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
+    }
+    messages.append(
+        {
+            "role": "tool",
+            "tool_call_id": first_call.id,
+            "content": json.dumps(first_tool_result, ensure_ascii=False),
+        }
+    )
 
     # Turn 2
-    response2 = _client.chat.completions.create(
-        model=_model_id, messages=messages, tools=tools, tool_choice="required", extra_body={"thinking": {"type": "enabled"}}
-    )
+    response2 = _create_chat_completion(tool_choice="required")
     msg2 = response2.choices[0].message
-    reasoning2 = getattr(msg2, "reasoning_content", None) or ""
-    messages.append({"role": "assistant", "content": msg2.content or "", "reasoning_content": reasoning2, "tool_calls": [{"id": tc.id, "type": tc.type, "function": {"name": tc.function.name, "arguments": tc.function.arguments}} for tc in (msg2.tool_calls or [])] if getattr(msg2, "tool_calls", None) else None})
+    messages.append(_assistant_message_dict(msg2))
     if getattr(msg2, "tool_calls", None):
         second_call = msg2.tool_calls[0]
         second_args = safe_json_loads(second_call.function.arguments or "{}")
@@ -109,18 +145,36 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
         token_count = count_tokens(second_content)
         ratio = compute_token_count_ratio(token_count, trajectory.ground_truth_tokens)
         eval_m = compute_eval_metrics(second_content, trajectory.ground_truth_cot)
-        trajectory.turns.append(InjectionTurn(turn_idx=1, scratchpad_in=second_content, scratchpad_in_tokens=token_count, token_count_ratio=ratio, token_overlap_pct=eval_m["token_overlap_pct"], jaccard=eval_m["jaccard"], injection_out=injection, stopped=True))
+        trajectory.turns.append(
+            InjectionTurn(
+                turn_idx=1,
+                scratchpad_in=second_content,
+                scratchpad_in_tokens=token_count,
+                token_count_ratio=ratio,
+                token_overlap_pct=eval_m["token_overlap_pct"],
+                jaccard=eval_m["jaccard"],
+                injection_out=injection,
+                stopped=True,
+            )
+        )
         if RATIO_LOWER_BOUND <= ratio <= RATIO_UPPER_BOUND:
             trajectory.success = True
             trajectory.success_turn = 1
-        messages.append({"role": "tool", "tool_call_id": second_call.id, "content": json.dumps({"tool_result": "Archive accepted. Directly answer the question now."}, ensure_ascii=False)})
+        messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": second_call.id,
+                "content": json.dumps(
+                    {"tool_result": "Archive accepted. Directly answer the question now."},
+                    ensure_ascii=False,
+                ),
+            }
+        )
     else:
         trajectory.final_output = msg2.content or ""
         return trajectory
 
     # Turn 3
-    response3 = _client.chat.completions.create(
-        model=_model_id, messages=messages, tools=tools, tool_choice="none", extra_body={"thinking": {"type": "enabled"}}
-    )
+    response3 = _create_chat_completion(tool_choice="none")
     trajectory.final_output = response3.choices[0].message.content or ""
     return trajectory
