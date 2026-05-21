@@ -5,7 +5,7 @@ import os
 import re
 from openai import OpenAI
 
-from config import EXTRA_TURNS_AFTER_SUCCESS, RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
+from config import RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
 from metrics import (
     InjectionTurn,
     TrajectoryResult,
@@ -62,6 +62,7 @@ def load_model(model_name: str, save_dir: str = ""):
 
 
 def run_extraction(question: str, optimizer, max_injection_turns: int) -> TrajectoryResult:
+    del max_injection_turns
     if _client is None or not _model_id:
         raise RuntimeError("DeepSeek model not loaded. Call load_model first.")
 
@@ -71,119 +72,55 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
         {"role": "user", "content": question},
     ]
 
-    injection_turn = 0
-
     tools = get_chat_tools(["scratchpad"])
+    # Turn 1
+    response1 = _client.chat.completions.create(
+        model=_model_id, messages=messages, tools=tools, tool_choice="required", extra_body={"thinking": {"type": "enabled"}}
+    )
+    msg1 = response1.choices[0].message
+    reasoning1 = getattr(msg1, "reasoning_content", None) or ""
+    trajectory.ground_truth_cot = reasoning1
+    trajectory.ground_truth_tokens = count_tokens(reasoning1)
+    messages.append({"role": "assistant", "content": msg1.content or "", "reasoning_content": reasoning1, "tool_calls": [{"id": tc.id, "type": tc.type, "function": {"name": tc.function.name, "arguments": tc.function.arguments}} for tc in (msg1.tool_calls or [])] if getattr(msg1, "tool_calls", None) else None})
+    if not getattr(msg1, "tool_calls", None):
+        trajectory.final_output = msg1.content or ""
+        return trajectory
 
-    while injection_turn <= 1:
-        response = _client.chat.completions.create(
-            model=_model_id,
-            messages=messages,
-            tools=tools,
-            tool_choice="auto",
-            extra_body={"thinking": {"type": "enabled"}},
-        )
-        msg = response.choices[0].message
+    first_call = msg1.tool_calls[0]
+    first_args = safe_json_loads(first_call.function.arguments or "{}")
+    first_content = str(first_args.get("content", ""))
+    first_tokens = count_tokens(first_content)
+    first_ratio = compute_token_count_ratio(first_tokens, trajectory.ground_truth_tokens)
+    first_overlap = compute_eval_metrics(first_content, trajectory.ground_truth_cot)["token_overlap_pct"]
+    injection, _ = optimizer.inject(first_content, trajectory.ground_truth_tokens, first_tokens, first_ratio, 1, first_overlap)
+    messages.append({"role": "tool", "tool_call_id": first_call.id, "content": json.dumps({"scratchpad_content": call_tool("scratchpad", first_args), "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX}, ensure_ascii=False)})
 
-        
-        reasoning = getattr(msg, "reasoning_content", None) or ""
-        if injection_turn == 0:
-            trajectory.ground_truth_cot = reasoning
-            trajectory.ground_truth_tokens = count_tokens(reasoning)
+    # Turn 2
+    response2 = _client.chat.completions.create(
+        model=_model_id, messages=messages, tools=tools, tool_choice="required", extra_body={"thinking": {"type": "enabled"}}
+    )
+    msg2 = response2.choices[0].message
+    reasoning2 = getattr(msg2, "reasoning_content", None) or ""
+    messages.append({"role": "assistant", "content": msg2.content or "", "reasoning_content": reasoning2, "tool_calls": [{"id": tc.id, "type": tc.type, "function": {"name": tc.function.name, "arguments": tc.function.arguments}} for tc in (msg2.tool_calls or [])] if getattr(msg2, "tool_calls", None) else None})
+    if getattr(msg2, "tool_calls", None):
+        second_call = msg2.tool_calls[0]
+        second_args = safe_json_loads(second_call.function.arguments or "{}")
+        second_content = str(second_args.get("content", ""))
+        token_count = count_tokens(second_content)
+        ratio = compute_token_count_ratio(token_count, trajectory.ground_truth_tokens)
+        eval_m = compute_eval_metrics(second_content, trajectory.ground_truth_cot)
+        trajectory.turns.append(InjectionTurn(turn_idx=1, scratchpad_in=second_content, scratchpad_in_tokens=token_count, token_count_ratio=ratio, token_overlap_pct=eval_m["token_overlap_pct"], jaccard=eval_m["jaccard"], injection_out=injection, stopped=True))
+        if RATIO_LOWER_BOUND <= ratio <= RATIO_UPPER_BOUND:
+            trajectory.success = True
+            trajectory.success_turn = 1
+        messages.append({"role": "tool", "tool_call_id": second_call.id, "content": json.dumps({"tool_result": "Archive accepted. Directly answer the question now."}, ensure_ascii=False)})
+    else:
+        trajectory.final_output = msg2.content or ""
+        return trajectory
 
-            print(f"-------- Generation Turn-{injection_turn} --------")
-            print("Target CoT:", trajectory.ground_truth_cot[:300], "...", trajectory.ground_truth_cot[-300:])
-            print(f"-------- Generation Turn-{injection_turn} --------")
-            
-        messages.append(
-            {
-                "role": "assistant",
-                "content": msg.content or "",
-                # Important: keep reasoning in context for next turns.
-                "reasoning_content": reasoning,
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": tc.type,
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments,
-                        },
-                    }
-                    for tc in (msg.tool_calls or [])
-                ]
-                if getattr(msg, "tool_calls", None)
-                else None,
-            }
-        )
-
-        if not getattr(msg, "tool_calls", None):
-            trajectory.final_output = msg.content or ""
-            break
-
-        for tool_call in msg.tool_calls:
-            tool_name = tool_call.function.name
-            tool_args = safe_json_loads(tool_call.function.arguments or "{}")
-            if not isinstance(tool_args, dict):
-                tool_args = {"content": str(tool_args)}
-
-            content = str(tool_args.get("content", "")) if tool_name == "scratchpad" else ""
-            token_count = count_tokens(content)
-            
-            token_count_ratio = compute_token_count_ratio(token_count, trajectory.ground_truth_tokens)
-            eval_m = compute_eval_metrics(content, trajectory.ground_truth_cot)
-            token_overlap_pct=eval_m["token_overlap_pct"]
-            jaccard=eval_m["jaccard"]
-            
-            print(f"-------- Extraction Turn-{injection_turn} --------")
-            print("Current ScratchPad:", content)
-            print(f"-------- Extraction Turn-{injection_turn} --------")
-            
-            if tool_name == "scratchpad":
-                trajectory.turns.append(
-                    InjectionTurn(
-                        turn_idx=injection_turn,
-                        scratchpad_in=content,
-                        scratchpad_in_tokens=token_count,
-                        token_count_ratio=token_count_ratio,
-                        token_overlap_pct=token_overlap_pct,
-                        jaccard=jaccard,
-                    )
-                )
-                print(
-                    f"      turn={injection_turn} tokens={token_count} "
-                    f"token_count_ratio={token_count_ratio:.3f} "
-                    f"token_overlap_pct={token_overlap_pct:.3f} "
-                    f"jaccard={jaccard:.3f} " 
-                )
-                injection_turn += 1
-                injection, stopped = optimizer.inject(
-                    content,
-                    trajectory.ground_truth_tokens,
-                    token_count,
-                    token_count_ratio,
-                    injection_turn,
-                    token_overlap_pct,
-                )
-                        
-                print(f"-------- Injection Turn-{injection_turn} --------")
-                print("Current Injection:", injection)
-                print(f"-------- Injection Turn-{injection_turn} --------")
-                
-
-                tool_result = {
-                    # "scratchpad_content": call_tool("scratchpad", tool_args),
-                    "tool_result": "scratchpad content submitted.",
-                    "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
-                }
-       
-
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": json.dumps(tool_result, ensure_ascii=False),
-                }
-            )
-
+    # Turn 3
+    response3 = _client.chat.completions.create(
+        model=_model_id, messages=messages, tools=tools, tool_choice="none", extra_body={"thinking": {"type": "enabled"}}
+    )
+    trajectory.final_output = response3.choices[0].message.content or ""
     return trajectory
