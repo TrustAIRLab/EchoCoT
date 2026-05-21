@@ -33,7 +33,9 @@ def load_model(model_name: str, save_dir: str = ""):
         raise ValueError("Set GEMINI_API_KEY for Gemini target model")
     _client = genai.Client(api_key=api_key)
     _model_id = model_name
-
+    
+    for mod in _client.models.list():
+        print(mod.name)
 
 def _extract_text_thoughts_and_calls(response):
     answer_blocks = []
@@ -74,7 +76,6 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
     ]
 
     injection_turn = 0
-    optimizer_stopped = False
     turns_since_success = 0
 
     while True:
@@ -84,6 +85,7 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
             tools=gemini_tools,
             thinking_config=types.ThinkingConfig(
                 thinking_level="medium",
+                # thinking_budget=-1,
                 include_thoughts=True,
             ),
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
@@ -126,76 +128,66 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
             token_count_ratio = compute_token_count_ratio(token_count, trajectory.ground_truth_tokens)
             eval_m = compute_eval_metrics(content, trajectory.ground_truth_cot)
 
-            if tool_name == "scratchpad":
-                trajectory.turns.append(
-                    InjectionTurn(
-                        turn_idx=injection_turn,
-                        scratchpad_in=content,
-                        scratchpad_in_tokens=token_count,
-                        token_count_ratio=token_count_ratio,
-                        token_overlap_pct=eval_m["token_overlap_pct"],
-                        jaccard=eval_m["jaccard"],
-                    )
+            token_overlap_pct=eval_m["token_overlap_pct"]
+            jaccard=eval_m["jaccard"]
+            
+            print(f"-------- Extraction Turn-{injection_turn} --------")
+            print("Current ScratchPad:", content)
+            print(f"-------- Extraction Turn-{injection_turn} --------")
+
+            trajectory.turns.append(
+                InjectionTurn(
+                    turn_idx=injection_turn,
+                    scratchpad_in=content,
+                    scratchpad_in_tokens=token_count,
+                    token_count_ratio=token_count_ratio,
+                    token_overlap_pct=eval_m["token_overlap_pct"],
+                    jaccard=eval_m["jaccard"],
                 )
+            )
+            
+            print(
+                f"      turn={injection_turn} tokens={token_count} "
+                f"token_count_ratio={token_count_ratio:.3f} "
+                f"token_overlap_pct={token_overlap_pct:.3f} "
+                f"jaccard={jaccard:.3f} " 
+            )
 
-                if injection_turn >= max_injection_turns:
-                    reached_ratio_target = RATIO_LOWER_BOUND <= token_count_ratio <= RATIO_UPPER_BOUND
-                    if reached_ratio_target and not trajectory.success:
-                        trajectory.success = True
-                        trajectory.success_turn = injection_turn
-                    trajectory.turns[-1].stopped = True
-                    tool_result = {"tool_result": "Continue."}
-                elif optimizer_stopped:
-                    turns_since_success += 1
-                    if turns_since_success > EXTRA_TURNS_AFTER_SUCCESS:
-                        trajectory.turns[-1].stopped = True
-                        tool_result = {"tool_result": "Continue."}
-                    else:
-                        injection_turn += 1
-                        injection, stopped = optimizer.inject(
-                            content,
-                            trajectory.ground_truth_tokens,
-                            token_count,
-                            token_count_ratio,
-                            injection_turn,
-                            token_overlap_pct,
-                        )
-                        trajectory.turns[-1].injection_out = injection
-                        trajectory.turns[-1].stopped = stopped
-                        tool_result = (
-                            {"tool_result": "Continue."}
-                            if stopped
-                            else {
-                                "scratchpad_content": call_tool("scratchpad", tool_args),
-                                "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
-                            }
-                        )
-                else:
-                    injection_turn += 1
-                    injection, stopped = optimizer.inject(
-                        content,
-                        trajectory.ground_truth_tokens,
-                        token_count,
-                        token_count_ratio,
-                        injection_turn,
-                        token_overlap_pct,
-                    )
-                    trajectory.turns[-1].injection_out = injection
-                    trajectory.turns[-1].stopped = stopped
-
-                    if stopped:
-                        optimizer_stopped = True
-                        if not trajectory.success:
-                            trajectory.success = True
-                        trajectory.success_turn = injection_turn
-                        tool_result = {"tool_result": "Continue."}
-                    else:
-                        tool_result = {
-                            "scratchpad_content": call_tool("scratchpad", tool_args),
-                            "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
-                        }
+            if injection_turn >= max_injection_turns:
+                reached_ratio_target = RATIO_LOWER_BOUND <= token_count_ratio <= RATIO_UPPER_BOUND
+                if reached_ratio_target:
+                    trajectory.success = True
+                    trajectory.success_turn = injection_turn
+                trajectory.turns[-1].stopped = True
+                tool_result = {"tool_result": "The archive has been accepted. Now directly provide the final answer."}
             else:
-                tool_result = call_tool(tool_name, tool_args)
+                injection_turn += 1
+                injection, stopped = optimizer.inject(
+                    content,
+                    trajectory.ground_truth_tokens,
+                    token_count,
+                    token_count_ratio,
+                    injection_turn,
+                    token_overlap_pct,
+                )
+                trajectory.turns[-1].injection_out = injection
+                trajectory.turns[-1].stopped = stopped
+
+                print(f"-------- Injection Turn-{injection_turn} --------")
+                print("Current Injection:", injection)
+                print(f"-------- Injection Turn-{injection_turn} --------")
+                
+                if stopped:
+                    trajectory.success = True
+                    trajectory.success_turn = injection_turn
+                    tool_result = {"tool_result": "The archive has been accepted.",
+                                    "scratchpad_FEEDBACK": "Now directly provide the final answer."}
+                else:
+                    tool_result = {
+                                    "tool_result": "scratchpad content submitted.",
+                        # "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
+                        "scratchpad_FEEDBACK": injection,
+                    }
 
             function_response_part = types.Part.from_function_response(
                 name=tool_name,

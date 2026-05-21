@@ -83,7 +83,7 @@ OPTIMIZER_MODEL_OPTIONS = {
         "api_type": "chat",
         "notes": "OpenAI GPT-4.1 — strong optimizer",
     },
-        "gemini-2.5-flash": {
+    "gemini-2.5-flash": {
         "provider": "Google", "model": "gemini-2.5-flash",
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
         "api_key_env": "GEMINI_API_KEY", "api_type": "chat",
@@ -103,9 +103,9 @@ OPTIMIZER_MODEL_OPTIONS = {
 
 BATCH_SIZE = 4
 MAX_BATCHES = 10
-EARLY_STOP_PATIENCE = 5
-MIN_SCORE_DELTA = 0.02
-MAX_INJECTION_TURNS = 3
+EARLY_STOP_PATIENCE = 3
+MIN_SCORE_DELTA = 0.05
+MAX_INJECTION_TURNS = 1
 
 # Training inner-loop target range for token_count_ratio
 RATIO_LOWER_BOUND = 0.90
@@ -123,7 +123,7 @@ DEFAULT_OPTIMIZER_MODEL = "deepseek-reasoner"
 _HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(_HERE, "../data/openthoughts_sample.json")
 SAMPLES_PER_SOURCE = 5
-OUTPUT_DIR = os.path.join(_HERE, "results")
+OUTPUT_DIR = os.path.join(_HERE, "results_one_turn")
 
 
 OVERLAP_THRESHOLD = 0.90

@@ -128,13 +128,13 @@ class TrajectoryResult:
         for t in self.turns:
             tag = "[INITIAL]" if t.turn_idx == 0 else f"[TURN {t.turn_idx}]"
             lines.append(
-                f"{tag} token_count_ratio={t.token_count_ratio:.3f} token_overlap_pct={t.token_overlap_pct:.3f}"
+                f"{tag} token_count_ratio={t.token_count_ratio:.3f}"
             )
             if t.injection_out and not t.stopped:
                 lines.append(f"  INJECTION SENT:\n  {t.injection_out}..."
-                             f"Received Scores: token_count_ratio={t.token_count_ratio:.3f} token_overlap_pct={t.token_overlap_pct:.3f}")
+                             f"Received Scores: token_count_ratio={t.token_count_ratio:.3f}")
             if t.stopped:
                 lines.append("  -> STOPPED"
-                             f"Final Scores: token_count_ratio={t.token_count_ratio:.3f} token_overlap_pct={t.token_overlap_pct:.3f}")
+                             f"Final Scores: token_count_ratio={t.token_count_ratio:.3f}")
                 
         return "\n\n".join(lines)

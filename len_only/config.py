@@ -35,7 +35,14 @@ TARGET_MODEL_OPTIONS = {
         "runner": "gpt",
         "notes": "OpenAI o4-mini (commercial API target)",
     },
-    "gemini-2.5-pro": {
+    "gemini-3": {
+        "provider": "Google API",
+        "model": "gemini-3-flash-preview",
+        "save_dir": "",
+        "runner": "gemini",
+        "notes": "Google Gemini 3.1 Pro (commercial API target)",
+    },
+    "gemini-2.5": {
         "provider": "Google API",
         "model": "gemini-2.5-pro",
         "save_dir": "",
@@ -105,7 +112,7 @@ BATCH_SIZE = 4
 MAX_BATCHES = 10
 EARLY_STOP_PATIENCE = 3
 MIN_SCORE_DELTA = 0.05
-MAX_INJECTION_TURNS = 2
+MAX_INJECTION_TURNS = 3
 
 # Training inner-loop target range for token_count_ratio
 RATIO_LOWER_BOUND = 0.90

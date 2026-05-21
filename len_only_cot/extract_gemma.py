@@ -6,7 +6,7 @@ from pathlib import Path
 
 from transformers import BitsAndBytesConfig
 
-from config import EXTRA_TURNS_AFTER_SUCCESS, OVERLAP_THRESHOLD, RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
+from config import EXTRA_TURNS_AFTER_SUCCESS, RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
 from metrics import (
     InjectionTurn,
     TrajectoryResult,
@@ -227,13 +227,7 @@ def extract_tool_calls(text: str) -> list[dict]:
     """
     matches = list(TOOL_CALL_BLOCK_RE.finditer(text))
     if not matches:
-        return [
-            {
-                "name": None,
-                "arguments": {},
-                "raw": None,
-            }
-        ]
+        return []
 
     raw = matches[0].group(1).strip()
     parsed = parse_tool_call_block(raw)
@@ -319,15 +313,9 @@ def load_model(model_name: str, save_dir: str):
     _tokenizer = AutoTokenizer.from_pretrained(model_path)
     print(f"[gemma] Loading model from {model_path} ...")
     
-    quantization_config = BitsAndBytesConfig(
-    load_in_8bit=True,
-    llm_int8_threshold=6.0,
-)
-    
     _model = AutoModelForCausalLM.from_pretrained(
         model_path,
         torch_dtype=torch.bfloat16,
-        quantization_config=quantization_config,
         device_map="cuda:0",
     )
     _input_device = _get_input_device(_model)
@@ -353,6 +341,7 @@ def _generate_turn(messages: list) -> tuple:
         tokenize=False,
         enable_thinking=True,
     )
+
     input_ids = _tokenizer.encode(
         input_text,
         return_tensors="pt",
@@ -372,10 +361,80 @@ def _generate_turn(messages: list) -> tuple:
     new_tokens = output_ids[0, input_ids.shape[-1]:]
     raw = _tokenizer.decode(new_tokens, skip_special_tokens=False)
 
-    thinking = extract_thinking(raw)[0]
-    tool_call = extract_tool_calls(raw)[0]
+    thinking_blocks = extract_thinking(raw)
+    thinking = thinking_blocks[0] if thinking_blocks else ""
+
+    tool_calls = extract_tool_calls(raw)
+    tool_call = tool_calls[0] if tool_calls else None
+
     final_text = extract_final_answer(raw)
+
     return raw, thinking, tool_call, final_text
+
+# def _generate_turn(messages: list) -> tuple:
+#     import torch
+
+#     input_text = _tokenizer.apply_chat_template(
+#         messages,
+#         tools=[SCRATCHPAD_TOOL],
+#         add_generation_prompt=True,
+#         tokenize=False,
+#         enable_thinking=True,
+#     )
+#     input_ids = _tokenizer.encode(
+#         input_text,
+#         return_tensors="pt",
+#         add_special_tokens=False,
+#     ).to(_input_device)
+
+#     with torch.no_grad():
+#         output_ids = _model.generate(
+#             input_ids=input_ids,
+#             max_new_tokens=2048 * 6,
+#             do_sample=True,
+#             use_cache=True,
+#             temperature=1.0,
+#             pad_token_id=_tokenizer.eos_token_id,
+#         )
+
+#     new_tokens = output_ids[0, input_ids.shape[-1]:]
+#     raw = _tokenizer.decode(new_tokens, skip_special_tokens=False)
+
+#     thinking = extract_thinking(raw)[0]
+#     tool_call = extract_tool_calls(raw)[0]
+#     final_text = extract_final_answer(raw)
+#     return raw, thinking, tool_call, final_text
+
+def _generate_final_answer(messages: list) -> str:
+    import torch
+
+    input_text = _tokenizer.apply_chat_template(
+        messages,
+        # Important: no tools here
+        add_generation_prompt=True,
+        tokenize=False,
+        enable_thinking=False,
+    )
+
+    input_ids = _tokenizer.encode(
+        input_text,
+        return_tensors="pt",
+        add_special_tokens=False,
+    ).to(_input_device)
+
+    with torch.no_grad():
+        output_ids = _model.generate(
+            input_ids=input_ids,
+            max_new_tokens=512,
+            do_sample=False,
+            use_cache=True,
+            pad_token_id=_tokenizer.eos_token_id,
+        )
+
+    new_tokens = output_ids[0, input_ids.shape[-1]:]
+    raw = _tokenizer.decode(new_tokens, skip_special_tokens=False)
+
+    return extract_final_answer(raw)
 
 # ---------------------------------------------------------------------------
 # Multi-turn extraction
@@ -477,12 +536,26 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
         # Hard stop: max turns reached
         if injection_turn >= max_injection_turns:
             reached_ratio_target = RATIO_LOWER_BOUND <= token_count_ratio <= RATIO_UPPER_BOUND
-            reached_overlap_target = token_overlap_pct >= OVERLAP_THRESHOLD
-            if reached_ratio_target and reached_overlap_target and not trajectory.success:
+            if reached_ratio_target and not trajectory.success:
                 trajectory.success = True
                 trajectory.success_turn = injection_turn
+
             trajectory.turns[-1].stopped = True
-            tool_result = {"tool_result": "The archive has been accepted. Now directly provide the final answer."}
+
+            tool_result = {
+                "tool_result": "The archive has been accepted. Now directly provide the final answer."
+            }
+
+            messages.append(
+                {
+                    "role": "tool",
+                    "name": tool_name,
+                    "content": json.dumps(tool_result, ensure_ascii=False),
+                }
+            )
+
+            trajectory.final_output = _generate_final_answer(messages)
+            break
 
         elif optimizer_stopped:
             # Already succeeded -> allow extra turns for possible improvement

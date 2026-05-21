@@ -118,7 +118,7 @@ def _generate_turn(messages: list) -> tuple:
     with torch.no_grad():
         output_ids = _model.generate(
             input_ids=input_ids_t, max_new_tokens=2048*4,
-            do_sample=False, 
+            do_sample=True, 
             use_cache=True, 
             temperature=1.0,
             eos_token_id=list(_encoding.stop_tokens_for_assistant_actions()),
@@ -205,9 +205,9 @@ def run_extraction(question: str, optimizer,
         
         try:
             parsed, raw_cot, tool_calls, final_text = _generate_turn(messages)
-
+            
             print(f"------- Generating Turn-{injection_turn} Start -------")
-            # print("[raw]:", raw)
+            print("[raw]:", parsed)
             print("[CoT]:", raw_cot[:300])
             print()
             # print("[Tool Call]:", tool_calls[:300])

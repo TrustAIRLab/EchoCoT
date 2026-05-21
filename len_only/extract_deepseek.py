@@ -161,7 +161,7 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
 
                 if injection_turn >= max_injection_turns:
                     reached_ratio_target = RATIO_LOWER_BOUND <= token_count_ratio <= RATIO_UPPER_BOUND
-                    if reached_ratio_target and not trajectory.success:
+                    if reached_ratio_target:
                         trajectory.success = True
                         trajectory.success_turn = injection_turn
                     trajectory.turns[-1].stopped = True
