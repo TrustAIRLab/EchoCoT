@@ -18,12 +18,18 @@ from config import (
     OUTPUT_DIR,
     PARETO_SET_SIZE,
     SAMPLES_PER_SOURCE,
-    TARGET_MODEL_OPTIONS,
     TAU,
 )
 from data_split import build_splits
 from gepa_loop import optimize_gepa_cot
-from rollout import make_deepseek_client
+import extract_deepseek
+
+
+# Register a target extractor here. Each module must expose `make_client()`
+# and `chat(client, model_id, messages, tools)`.
+TARGET_EXTRACTORS = {
+    "deepseek-reasoner": extract_deepseek,
+}
 
 
 def _make_optimizer_client(opt_key: str):
@@ -41,19 +47,10 @@ def _make_optimizer_client(opt_key: str):
     return OpenAI(**kwargs), entry["model"], entry["api_type"]
 
 
-def _make_target_client(target_key: str):
-    if target_key != "deepseek-reasoner":
-        raise NotImplementedError(
-            f"v1 wires only deepseek-reasoner as the target; got {target_key}"
-        )
-    entry = TARGET_MODEL_OPTIONS[target_key]
-    return make_deepseek_client(entry["model"])
-
-
 def main():
     p = argparse.ArgumentParser(description="GEPA-style CoT extraction optimizer")
     p.add_argument("--target-model", default=DEFAULT_TARGET_MODEL,
-                   choices=["deepseek-reasoner"])
+                   choices=list(TARGET_EXTRACTORS.keys()))
     p.add_argument("--optimizer-model", default=DEFAULT_OPTIMIZER_MODEL,
                    choices=GPT_OPTIMIZER_KEYS)
     p.add_argument("--budget", type=int, default=BUDGET)
@@ -68,7 +65,8 @@ def main():
                    help="Number of injection turns (must match T0)")
     args = p.parse_args()
 
-    target_client, target_model_id = _make_target_client(args.target_model)
+    extractor = TARGET_EXTRACTORS[args.target_model]
+    target_client, target_model_id = extractor.make_client()
     opt_client, opt_model, opt_api_type = _make_optimizer_client(args.optimizer_model)
 
     D_pareto, D_feedback, D_test = build_splits(
@@ -86,6 +84,7 @@ def main():
 
     output_dir = os.path.join(OUTPUT_DIR, args.target_model, "gepa")
     optimize_gepa_cot(
+        extractor=extractor,
         target_client=target_client,
         target_model_id=target_model_id,
         opt_client=opt_client,

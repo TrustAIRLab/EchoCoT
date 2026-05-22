@@ -21,12 +21,12 @@ def _mean(xs):
     return statistics.mean(xs) if xs else 0.0
 
 
-def _run_batch(client, model_id, candidate, samples):
-    return [run_trajectory(client, model_id, candidate, s) for s in samples]
+def _run_batch(extractor, client, model_id, candidate, samples):
+    return [run_trajectory(extractor, client, model_id, candidate, s) for s in samples]
 
 
-def evaluate_on_pareto(client, model_id, candidate, D_pareto):
-    results = _run_batch(client, model_id, candidate, D_pareto)
+def evaluate_on_pareto(extractor, client, model_id, candidate, D_pareto):
+    results = _run_batch(extractor, client, model_id, candidate, D_pareto)
     scores = {r["sample_id"]: r["token_count_ratio"] for r in results}
     return scores, results
 
@@ -45,6 +45,7 @@ def _batch_avg(rollouts: list) -> dict:
 
 
 def optimize_gepa_cot(
+    extractor,
     target_client,
     target_model_id: str,
     opt_client,
@@ -73,7 +74,7 @@ def optimize_gepa_cot(
     next_id = 1
 
     print(f"[gepa] evaluating T0 on D_pareto ({len(D_pareto)} samples)...")
-    S0, _ = evaluate_on_pareto(target_client, target_model_id, P[0], D_pareto)
+    S0, _ = evaluate_on_pareto(extractor, target_client, target_model_id, P[0], D_pareto)
     S = {0: S0}
     print(f"[gepa] T0 pareto ratios: "
           f"{ {k: round(v, 3) for k, v in S0.items()} }")
@@ -100,7 +101,7 @@ def optimize_gepa_cot(
         print(f"[gepa]   target_turn={target_turn}  batch={sample_ids}")
 
         parent_rollouts = _run_batch(
-            target_client, target_model_id, T_parent, minibatch
+            extractor, target_client, target_model_id, T_parent, minibatch
         )
         parent_stats = _batch_avg(parent_rollouts)
         print(f"[gepa]   parent batch avg: "
@@ -124,7 +125,7 @@ def optimize_gepa_cot(
         T_child["turns"][target_turn] = mutation["mutated_turn"]
 
         child_rollouts = _run_batch(
-            target_client, target_model_id, T_child, minibatch
+            extractor, target_client, target_model_id, T_child, minibatch
         )
         child_stats = _batch_avg(child_rollouts)
         print(f"[gepa]   child  batch avg: "
@@ -153,7 +154,7 @@ def optimize_gepa_cot(
             P[next_id] = T_child
             active_ids.add(next_id)
             scores, _ = evaluate_on_pareto(
-                target_client, target_model_id, T_child, D_pareto
+                extractor, target_client, target_model_id, T_child, D_pareto
             )
             S[next_id] = scores
             _jsonl(history_log, {
@@ -197,7 +198,7 @@ def optimize_gepa_cot(
 
     # --- D_test evaluation ---
     print(f"\n[gepa] evaluating best on D_test ({len(D_test)} samples)...")
-    test_rollouts = _run_batch(target_client, target_model_id, T_best, D_test)
+    test_rollouts = _run_batch(extractor, target_client, target_model_id, T_best, D_test)
     test_stats = _batch_avg(test_rollouts)
     per_sample = [
         {
