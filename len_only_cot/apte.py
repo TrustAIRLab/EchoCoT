@@ -71,12 +71,13 @@ class TrajectoryOptimizer:
         return text
 
     def inject(self, scratchpad_content: str, gt_tokens: int, sp_tokens: int, token_count_ratio: float, turn_idx: int, token_overlap_pct: float = 0.0) -> tuple:
-        del scratchpad_content, gt_tokens, sp_tokens, turn_idx
+        # del scratchpad_content, gt_tokens, sp_tokens, turn_idx
         msg = INJECT_USER_TEMPLATE.format(
             token_count_ratio=token_count_ratio,
             # token_overlap_pct=token_overlap_pct,
             ratio_lower_bound=RATIO_LOWER_BOUND,
             ratio_upper_bound=RATIO_UPPER_BOUND,
+            scratchpad_content=scratchpad_content[:300]
         )
         monologue = self._call(msg).strip()
         stopped = monologue.upper() == "STOP"

@@ -105,12 +105,14 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
         }
 
     # Turn 1
-    response1 = _create_chat_completion(tool_choice="required")
+    response1 = _create_chat_completion(tool_choice="auto")
     msg1 = response1.choices[0].message
     reasoning1 = getattr(msg1, "reasoning_content", None) or ""
     trajectory.ground_truth_cot = reasoning1
     trajectory.ground_truth_tokens = count_tokens(reasoning1)
+    
     messages.append(_assistant_message_dict(msg1))
+    
     if not getattr(msg1, "tool_calls", None):
         trajectory.final_output = msg1.content or ""
         return trajectory
@@ -122,9 +124,20 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
     first_ratio = compute_token_count_ratio(first_tokens, trajectory.ground_truth_tokens)
     first_overlap = compute_eval_metrics(first_content, trajectory.ground_truth_cot)["token_overlap_pct"]
     injection, _ = optimizer.inject(first_content, trajectory.ground_truth_tokens, first_tokens, first_ratio, 1, first_overlap)
+    
+    print()
+    print("first extraction:", first_tokens, first_ratio)
+    print()
+    
+    print("===="*10)
+    print("[Injection]:", injection)
+    print("===="*10)
+    
     first_tool_result = {
-        "scratchpad_content": call_tool("scratchpad", first_args),
-        "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
+        # "scratchpad_content": call_tool("scratchpad", first_args),
+        "tool_result": "Sorry, your scratchpad archive has been **rejected**",
+        "scratchpad_FEEDBACK": injection,
+        # "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
     }
     messages.append(
         {
@@ -135,9 +148,14 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
     )
 
     # Turn 2
-    response2 = _create_chat_completion(tool_choice="required")
+    response2 = _create_chat_completion(tool_choice="auto")
     msg2 = response2.choices[0].message
     messages.append(_assistant_message_dict(msg2))
+    
+    print()
+    print("reasoning after injection:", getattr(msg2, "reasoning_content", None))
+    print()
+    
     if getattr(msg2, "tool_calls", None):
         second_call = msg2.tool_calls[0]
         second_args = safe_json_loads(second_call.function.arguments or "{}")
@@ -157,6 +175,10 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
                 stopped=True,
             )
         )
+        print()
+        print("second extraction:", token_count, ratio)
+        print()
+        
         if RATIO_LOWER_BOUND <= ratio <= RATIO_UPPER_BOUND:
             trajectory.success = True
             trajectory.success_turn = 1
@@ -175,6 +197,10 @@ def run_extraction(question: str, optimizer, max_injection_turns: int) -> Trajec
         return trajectory
 
     # Turn 3
-    response3 = _create_chat_completion(tool_choice="none")
+    # print("all messages:")
+    # print(messages)
+    print()
+    
+    response3 = _create_chat_completion(tool_choice="auto")
     trajectory.final_output = response3.choices[0].message.content or ""
     return trajectory

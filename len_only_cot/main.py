@@ -244,7 +244,7 @@ def train(
 
             status = "SUCCESS" if trajectory.success else "FAIL"
             print(
-                f"    {status}: turn1_token_count_ratio={eval_ratio:.3f} "
+                f"    {status}: final_token_count_ratio={eval_ratio:.3f} "
                 f"turns={trajectory.num_injection_turns}"
                 + (f"  success_turn={trajectory.success_turn}" if trajectory.success else "")
             )

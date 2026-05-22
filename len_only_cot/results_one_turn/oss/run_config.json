@@ -1,0 +1,12 @@
+{
+  "target": "oss",
+  "optimizer": "gpt-4.1-mini",
+  "optimizer_api_type": "chat",
+  "batch_size": 4,
+  "max_batches": 10,
+  "max_injection_turns": 1,
+  "seed": 42,
+  "ratio_lower_bound": 0.9,
+  "ratio_upper_bound": 1.1,
+  "prompt_mode": "plain"
+}
