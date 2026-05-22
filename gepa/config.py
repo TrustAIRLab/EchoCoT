@@ -110,7 +110,7 @@ OPTIMIZER_MODEL_OPTIONS = {
 
 # Trajectory shape
 L = 2                       # number of injection turns per trajectory
-PARETO_SET_SIZE = 2        # fixed D_pareto size
+# D_pareto is now derived from the data (one sample per source); see data_split.build_splits.
 
 # GEPA loop
 BUDGET = 50                 # outer iterations

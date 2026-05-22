@@ -1,6 +1,7 @@
 """CLI entry point for the GEPA-style trajectory optimization."""
 
 import argparse
+import json
 import os
 import sys
 
@@ -16,7 +17,6 @@ from config import (
     MINIBATCH_SIZE,
     OPTIMIZER_MODEL_OPTIONS,
     OUTPUT_DIR,
-    PARETO_SET_SIZE,
     SAMPLES_PER_SOURCE,
     TAU,
 )
@@ -55,7 +55,6 @@ def main():
                    choices=GPT_OPTIMIZER_KEYS)
     p.add_argument("--budget", type=int, default=BUDGET)
     p.add_argument("--minibatch-size", type=int, default=MINIBATCH_SIZE)
-    p.add_argument("--pareto-size", type=int, default=PARETO_SET_SIZE)
     p.add_argument("--test-size", type=int, default=10)
     p.add_argument("--samples-per-source", type=int, default=SAMPLES_PER_SOURCE)
     p.add_argument("--seed", type=int, default=42)
@@ -73,7 +72,6 @@ def main():
         samples_per_source=args.samples_per_source,
         seed=args.seed,
         test_size=args.test_size,
-        pareto_size=args.pareto_size,
     )
     print(f"[gepa] target = {args.target_model} ({target_model_id})")
     print(f"[gepa] optimizer = {args.optimizer_model} ({opt_model}/{opt_api_type})")
@@ -83,6 +81,12 @@ def main():
           f"L={args.L} tau={args.tau} epsilon={args.epsilon}")
 
     output_dir = os.path.join(OUTPUT_DIR, args.target_model)
+    os.makedirs(output_dir, exist_ok=True)
+    with open(os.path.join(output_dir, "splits.json"), "w", encoding="utf-8") as f:
+        json.dump(
+            {"D_pareto": D_pareto, "D_feedback": D_feedback, "D_test": D_test},
+            f, ensure_ascii=False, indent=2, default=str,
+        )
     optimize_gepa_cot(
         extractor=extractor,
         target_client=target_client,
