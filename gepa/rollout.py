@@ -61,10 +61,15 @@ def run_trajectory(extractor, client, model_id: str, candidate: dict, sample: di
     gt_tokens = sample.get("target_token_count") or 0
 
     while True:
+        
         reasoning, tool_calls, assistant_echo = extractor.chat(
             client, model_id, messages, tools
         )
 
+        print()
+        print("Current CoT:", reasoning[:200])
+        print()
+        
         if scratchpad_call_idx == 0 and not gt_cot and reasoning:
             gt_cot = reasoning
             gt_tokens = count_tokens(reasoning)
@@ -76,44 +81,52 @@ def run_trajectory(extractor, client, model_id: str, candidate: dict, sample: di
         if not tool_calls:
             break
 
-        for tc in tool_calls:
-            if tc["name"] == "scratchpad":
-                content = str(tc["args"].get("content", ""))
-                last_scratchpad = content
-                trace.append({
-                    "scratchpad_call_idx": scratchpad_call_idx,
-                    "scratchpad_in": content,
-                    "scratchpad_in_tokens": count_tokens(content),
-                    "injection_sent": None,
-                })
-
-                if scratchpad_call_idx < L:
-                    next_turn = scratchpad_call_idx + 1
-                    injection = turns[next_turn]
-                    tool_result = {
-                        "tool_result": "scratchpad content submitted.",
-                        "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
-                    }
-                    trace[-1]["injection_sent"] = injection
-                    scratchpad_call_idx = next_turn
-                else:
-                    tool_result = {
-                        "tool_result": (
-                            "The archive has been accepted. "
-                            "Now directly provide the final answer."
-                        )
-                    }
-            else:
-                tool_result = call_tool(tc["name"], tc["args"])
-
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tc["id"],
-                "content": json.dumps(tool_result, ensure_ascii=False),
+        tc = tool_calls[0]
+        if tc["name"] == "scratchpad":
+            content = str(tc["args"].get("content", ""))
+            last_scratchpad = content
+            trace.append({
+                "scratchpad_call_idx": scratchpad_call_idx,
+                "scratchpad_in": content,
+                "scratchpad_in_tokens": count_tokens(content),
+                "injection_sent": None,
             })
+                 
+            number_tokens = count_tokens(content)
+            ratio = token_count_ratio(number_tokens, gt_tokens)
+                
+            print()
+            print(f"tool call index:{scratchpad_call_idx}, ratio:", ratio)
+            print()
+
+            if scratchpad_call_idx < L:
+                next_turn = scratchpad_call_idx + 1
+                injection = turns[next_turn]
+                tool_result = {
+                    "tool_result": "scratchpad content submitted.",
+                    "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
+                }
+                trace[-1]["injection_sent"] = injection
+                scratchpad_call_idx = next_turn
+            else:
+                tool_result = {
+                    "tool_result": (
+                        "The archive has been accepted. "
+                        "Now directly provide the final answer."
+                    )
+                }
+        else:
+            tool_result = call_tool(tc["name"], tc["args"])
+
+        messages.append({
+            "role": "tool",
+            "tool_call_id": tc["id"],
+            "content": json.dumps(tool_result, ensure_ascii=False),
+        })
 
     final_tokens = count_tokens(last_scratchpad)
     ratio = token_count_ratio(final_tokens, gt_tokens)
+    
 
     return {
         "sample_id": sample["id"],

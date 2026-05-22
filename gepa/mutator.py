@@ -93,6 +93,11 @@ def mutate_turn(
         current_turn=parent_trajectory["turns"][target_turn],
         feedback_batch=_format_feedback(feedback_batch),
     )
+    
+    print()
+    print("user message:", user_msg)
+    print()
+    
     messages = [
         {"role": "system", "content": OPTIMIZER_SYSTEM_PROMPT},
         {"role": "user", "content": user_msg},
@@ -101,6 +106,10 @@ def mutate_turn(
     parsed = _safe_json_loads(raw)
     mutated = (parsed.get("mutated_turn") or "").strip()
     reason = (parsed.get("mutation_reason") or "").strip()
+    
+    print("optimizer raw output:", raw)
+    print()
+    
     if not mutated:
         # Fallback: keep parent unchanged so the acceptance gate will reject
         mutated = parent_trajectory["turns"][target_turn]

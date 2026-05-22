@@ -82,7 +82,7 @@ def main():
     print(f"[gepa] budget={args.budget} minibatch={args.minibatch_size} "
           f"L={args.L} tau={args.tau} epsilon={args.epsilon}")
 
-    output_dir = os.path.join(OUTPUT_DIR, args.target_model, "gepa")
+    output_dir = os.path.join(OUTPUT_DIR, args.target_model)
     optimize_gepa_cot(
         extractor=extractor,
         target_client=target_client,

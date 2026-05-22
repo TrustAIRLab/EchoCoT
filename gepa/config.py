@@ -110,7 +110,7 @@ OPTIMIZER_MODEL_OPTIONS = {
 
 # Trajectory shape
 L = 2                       # number of injection turns per trajectory
-PARETO_SET_SIZE = 10        # fixed D_pareto size
+PARETO_SET_SIZE = 2        # fixed D_pareto size
 
 # GEPA loop
 BUDGET = 50                 # outer iterations
@@ -130,5 +130,5 @@ GPT_OPTIMIZER_KEYS = ["gpt-4.1", "gpt-4.1-mini", "o4-mini"]
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(_HERE, "../data/openthoughts_sample.json")
-SAMPLES_PER_SOURCE = 5
+SAMPLES_PER_SOURCE = 100
 OUTPUT_DIR = os.path.join(_HERE, "results")
