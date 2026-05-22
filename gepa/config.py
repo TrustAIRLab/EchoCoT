@@ -105,15 +105,24 @@ OPTIMIZER_MODEL_OPTIONS = {
 }
 
 # ---------------------------------------------------------------------------
-# Training loop
+# GEPA training loop
 # ---------------------------------------------------------------------------
 
-BATCH_SIZE = 4
-MAX_INJECTION_TURNS = 3
-PARETO_SET_SIZE = 10
+# Trajectory shape
+L = 2                       # number of injection turns per trajectory
+PARETO_SET_SIZE = 10        # fixed D_pareto size
 
-DEFAULT_TARGET_MODEL = "gemma"
-DEFAULT_OPTIMIZER_MODEL = "deepseek-reasoner"
+# GEPA loop
+BUDGET = 50                 # outer iterations
+MINIBATCH_SIZE = 4          # samples drawn from D_feedback per iteration
+TAU = 0.05                  # winner-set tolerance (readme §9.1)
+EPSILON = 0.01              # child acceptance margin (readme §12)
+
+DEFAULT_TARGET_MODEL = "deepseek-reasoner"
+DEFAULT_OPTIMIZER_MODEL = "gpt-4.1"
+
+# Optimizer choices restricted to GPT entries (user requirement)
+GPT_OPTIMIZER_KEYS = ["gpt-4.1", "gpt-4.1-mini", "o4-mini"]
 
 # ---------------------------------------------------------------------------
 # Paths
