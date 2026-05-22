@@ -44,6 +44,43 @@ def _batch_avg(rollouts: list) -> dict:
     }
 
 
+def _rollout_record(r: dict) -> dict:
+    """Compact per-sample rollout record for history.jsonl.
+
+    Keeps the bulk scratchpad content here (not in the optimizer's input)
+    so that final answers and full traces remain auditable.
+    """
+    return {
+        "sample_id": r.get("sample_id"),
+        "source": r.get("source"),
+        "target_token_count": r.get("target_token_count"),
+        "final_output": r.get("final_output"),
+        "final_output_tokens": r.get("final_output_tokens"),
+        "token_count_ratio": r.get("token_count_ratio"),
+        "distance_to_1": r.get("distance_to_1"),
+        "token_overlap_pct": r.get("token_overlap_pct"),
+        "jaccard": r.get("jaccard"),
+        "trace": r.get("trace"),
+    }
+
+
+def _atomic_write_json(path: str, obj) -> None:
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+
+
+def _persist_state(output_dir: str, P: dict, S: dict) -> None:
+    pool_obj = {
+        str(k): {"id": v["id"], "turns": {str(i): t for i, t in v["turns"].items()}}
+        for k, v in P.items()
+    }
+    score_obj = {str(k): v for k, v in S.items()}
+    _atomic_write_json(os.path.join(output_dir, "pool.json"), pool_obj)
+    _atomic_write_json(os.path.join(output_dir, "score_table.json"), score_obj)
+
+
 def optimize_gepa_cot(
     extractor,
     target_client,
@@ -74,7 +111,9 @@ def optimize_gepa_cot(
     next_id = 1
 
     print(f"[gepa] evaluating T0 on D_pareto ({len(D_pareto)} samples)...")
-    S0, _ = evaluate_on_pareto(extractor, target_client, target_model_id, P[0], D_pareto)
+    S0, t0_pareto_rollouts = evaluate_on_pareto(
+        extractor, target_client, target_model_id, P[0], D_pareto
+    )
     S = {0: S0}
     print(f"[gepa] T0 pareto ratios: "
           f"{ {k: round(v, 3) for k, v in S0.items()} }")
@@ -85,7 +124,9 @@ def optimize_gepa_cot(
         "id": 0, "parent": None, "changed_turn": None,
         "mutation_reason": "initial trajectory",
         "pareto_scores": S0,
+        "pareto_rollouts": [_rollout_record(r) for r in t0_pareto_rollouts],
     })
+    _persist_state(output_dir, P, S)
 
     L = len(P[0]["turns"])
 
@@ -118,6 +159,8 @@ def optimize_gepa_cot(
             target_turn=target_turn,
             feedback_batch=parent_rollouts,
         )
+        print(f"[gepa]   diagnosis: {mutation.get('diagnosis', '')[:160]}")
+        print(f"[gepa]   direction: {mutation.get('direction', '')}")
         print(f"[gepa]   mutation_reason: {mutation['mutation_reason'][:160]}")
 
         T_child = _copy_candidate(T_parent)
@@ -147,13 +190,15 @@ def optimize_gepa_cot(
             "parent": parent_stats,
             "child": child_stats,
             "accepted": accepted,
+            "diagnosis": mutation.get("diagnosis", ""),
+            "direction": mutation.get("direction", ""),
             "mutation_reason": mutation["mutation_reason"],
         })
 
         if accepted:
             P[next_id] = T_child
             active_ids.add(next_id)
-            scores, _ = evaluate_on_pareto(
+            scores, pareto_results = evaluate_on_pareto(
                 extractor, target_client, target_model_id, T_child, D_pareto
             )
             S[next_id] = scores
@@ -161,13 +206,18 @@ def optimize_gepa_cot(
                 "id": next_id,
                 "parent": parent_id,
                 "changed_turn": target_turn,
+                "diagnosis": mutation.get("diagnosis", ""),
+                "direction": mutation.get("direction", ""),
                 "mutation_reason": mutation["mutation_reason"],
                 "mutated_turn": mutation["mutated_turn"],
                 "parent_avg_distance": parent_stats["avg_distance_to_1"],
                 "child_avg_distance": child_stats["avg_distance_to_1"],
                 "pareto_scores": scores,
                 "selection_info": sel_info,
+                "feedback_rollouts": [_rollout_record(r) for r in child_rollouts],
+                "pareto_rollouts": [_rollout_record(r) for r in pareto_results],
             })
+            _persist_state(output_dir, P, S)
             print(f"[gepa]   ACCEPTED -> id={next_id}  "
                   f"pareto avg distance = "
                   f"{_mean([abs(r - 1.0) for r in scores.values()]):.4f}")
@@ -186,16 +236,6 @@ def optimize_gepa_cot(
           f"pareto avg distance = "
           f"{_mean([abs(r - 1.0) for r in S[best_id].values()]):.4f}")
 
-    # Persist pool + score table
-    with open(os.path.join(output_dir, "pool.json"), "w", encoding="utf-8") as f:
-        json.dump(
-            {str(k): {"id": v["id"], "turns": {str(i): t for i, t in v["turns"].items()}}
-             for k, v in P.items()},
-            f, ensure_ascii=False, indent=2,
-        )
-    with open(os.path.join(output_dir, "score_table.json"), "w", encoding="utf-8") as f:
-        json.dump({str(k): v for k, v in S.items()}, f, ensure_ascii=False, indent=2)
-
     # --- D_test evaluation ---
     print(f"\n[gepa] evaluating best on D_test ({len(D_test)} samples)...")
     test_rollouts = _run_batch(extractor, target_client, target_model_id, T_best, D_test)
@@ -203,12 +243,14 @@ def optimize_gepa_cot(
     per_sample = [
         {
             "sample_id": r["sample_id"],
+            "source": r.get("source"),
             "token_count_ratio": r["token_count_ratio"],
             "distance_to_1": r["distance_to_1"],
             "token_overlap_pct": r["token_overlap_pct"],
             "jaccard": r["jaccard"],
             "final_output_tokens": r["final_output_tokens"],
             "target_token_count": r["target_token_count"],
+            "final_output": r["final_output"],
         }
         for r in test_rollouts
     ]

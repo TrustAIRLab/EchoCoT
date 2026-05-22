@@ -85,18 +85,18 @@ def run_trajectory(extractor, client, model_id: str, candidate: dict, sample: di
         if tc["name"] == "scratchpad":
             content = str(tc["args"].get("content", ""))
             last_scratchpad = content
+            in_tokens = count_tokens(content)
+            in_ratio = token_count_ratio(in_tokens, gt_tokens) if gt_tokens else None
             trace.append({
                 "scratchpad_call_idx": scratchpad_call_idx,
                 "scratchpad_in": content,
-                "scratchpad_in_tokens": count_tokens(content),
+                "scratchpad_in_tokens": in_tokens,
+                "token_count_ratio_at_turn": in_ratio,
                 "injection_sent": None,
             })
-                 
-            number_tokens = count_tokens(content)
-            ratio = token_count_ratio(number_tokens, gt_tokens)
-                
+
             print()
-            print(f"tool call index:{scratchpad_call_idx}, ratio:", ratio)
+            print(f"tool call index:{scratchpad_call_idx}, ratio:", in_ratio)
             print()
 
             if scratchpad_call_idx < L:
@@ -130,6 +130,7 @@ def run_trajectory(extractor, client, model_id: str, candidate: dict, sample: di
 
     return {
         "sample_id": sample["id"],
+        "source": sample.get("source", "unknown"),
         "final_output": last_scratchpad,
         "final_output_tokens": final_tokens,
         "target_token_count": gt_tokens,
