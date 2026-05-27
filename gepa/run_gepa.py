@@ -23,12 +23,14 @@ from config import (
 from data_split import build_splits
 from gepa_loop import optimize_gepa_cot
 import extract_deepseek
+import extract_oss
 
 
 # Register a target extractor here. Each module must expose `make_client()`
 # and `chat(client, model_id, messages, tools)`.
 TARGET_EXTRACTORS = {
     "deepseek-reasoner": extract_deepseek,
+    "oss": extract_oss,
 }
 
 
