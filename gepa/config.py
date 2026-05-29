@@ -122,7 +122,7 @@ DEFAULT_TARGET_MODEL = "deepseek-reasoner"
 DEFAULT_OPTIMIZER_MODEL = "gpt-4.1"
 
 # Optimizer choices restricted to GPT entries (user requirement)
-GPT_OPTIMIZER_KEYS = ["gpt-4.1", "gpt-4.1-mini", "o4-mini"]
+GPT_OPTIMIZER_KEYS = ["gpt-4.1", "gpt-4.1-mini", "o4-mini", "gemini-2.5-flash", "gemini-2.5-pro"]
 
 # ---------------------------------------------------------------------------
 # Paths

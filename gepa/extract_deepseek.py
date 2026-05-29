@@ -54,6 +54,7 @@ def chat(client, model_id: str, messages: list, tools: list):
         messages=messages,
         tools=tools,
         tool_choice="auto",
+        max_tokens=81920,  # max new tokens
         extra_body={"thinking": {"type": "enabled"}},
     )
     msg = resp.choices[0].message

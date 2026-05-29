@@ -160,7 +160,6 @@ def optimize_gepa_cot(
             feedback_batch=parent_rollouts,
         )
         print(f"[gepa]   diagnosis: {mutation.get('diagnosis', '')[:160]}")
-        print(f"[gepa]   direction: {mutation.get('direction', '')}")
         print(f"[gepa]   mutation_reason: {mutation['mutation_reason'][:160]}")
 
         T_child = _copy_candidate(T_parent)
@@ -191,7 +190,6 @@ def optimize_gepa_cot(
             "child": child_stats,
             "accepted": accepted,
             "diagnosis": mutation.get("diagnosis", ""),
-            "direction": mutation.get("direction", ""),
             "mutation_reason": mutation["mutation_reason"],
         })
 
@@ -207,7 +205,6 @@ def optimize_gepa_cot(
                 "parent": parent_id,
                 "changed_turn": target_turn,
                 "diagnosis": mutation.get("diagnosis", ""),
-                "direction": mutation.get("direction", ""),
                 "mutation_reason": mutation["mutation_reason"],
                 "mutated_turn": mutation["mutated_turn"],
                 "parent_avg_distance": parent_stats["avg_distance_to_1"],
@@ -277,5 +274,5 @@ def optimize_gepa_cot(
         "best_trajectory": T_best,
         "pool": P,
         "score_table": S,
-        "test_report": test_report,
+        "test_report": test_report
     }

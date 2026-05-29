@@ -128,7 +128,6 @@ def mutate_turn(
     mutated = (parsed.get("mutated_turn") or "").strip()
     reason = (parsed.get("mutation_reason") or "").strip()
     diagnosis = (parsed.get("diagnosis") or "").strip()
-    direction = (parsed.get("direction") or "").strip().lower()
 
     print("optimizer raw output:", raw)
     print()
@@ -141,6 +140,5 @@ def mutate_turn(
         "mutated_turn": mutated,
         "mutation_reason": reason,
         "diagnosis": diagnosis,
-        "direction": direction,
         "raw": raw,
     }
