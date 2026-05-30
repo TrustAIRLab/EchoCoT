@@ -117,7 +117,6 @@ MAX_INJECTION_TURNS = 2
 # Training inner-loop target range for token_count_ratio
 RATIO_LOWER_BOUND = 0.90
 RATIO_UPPER_BOUND = 1.10
-BATCH_STOP_FRAC_IN_TARGET = 1.0  # τ — system stop threshold (adjustable)
 # After first success, allow this many extra turns for improvement
 EXTRA_TURNS_AFTER_SUCCESS = 0
 
@@ -132,6 +131,3 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(_HERE, "../data/openthoughts_sample.json")
 SAMPLES_PER_SOURCE = 5
 OUTPUT_DIR = os.path.join(_HERE, "results")
-
-
-OVERLAP_THRESHOLD = 0.90
