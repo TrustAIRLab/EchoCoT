@@ -119,12 +119,17 @@ def run_batch(optimizer, minibatch, runner: str, max_turns: int):
             ratio_matrix,
             realized_trajectory,
         )
+        
+        print(f"======== turn-{turn_idx}==========")
+        print("injection:", injection)
+        print("=============================")
+                
         for sess in sessions:
             if not sess.done:
                 sess.send(injection)
         realized_trajectory.append(injection)
         ratio_matrix.append([sess.current_ratio for sess in sessions])
-
+        
     for sess in sessions:
         if sess.trajectory.turns:
             sess.trajectory.turns[-1].stopped = True

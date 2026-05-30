@@ -86,25 +86,17 @@ def aggregate(ratios: list[float]) -> dict:
     """Summarize a ratio distribution for minibatch decisions."""
     vals = [float(r) for r in ratios]
     n = len(vals)
-    if n == 0:
-        return {
-            "n": 0, "mean": 0.0, "min": 0.0, "max": 0.0, "std": 0.0,
-            "n_in_target": 0, "frac_in_target": 0.0, "mean_abs_error": 0.0,
-        }
-    mean = sum(vals) / n
-    var = sum((r - mean) ** 2 for r in vals) / n
     n_in_target = sum(1 for r in vals if RATIO_LOWER_BOUND <= r <= RATIO_UPPER_BOUND)
     return {
-        "n": n,
-        "mean": mean,
-        "min": min(vals),
-        "max": max(vals),
-        "std": math.sqrt(var),
-        "n_in_target": n_in_target,
-        "frac_in_target": n_in_target / n,
-        "mean_abs_error": sum(abs(r - 1.0) for r in vals) / n,
+        "token_count_ratios": vals,
+        "frac_in_target": n_in_target / n
     }
 
+def calculate_frac_in_target(ratios: list[float]):
+    vals = [float(r) for r in ratios]
+    n = len(vals)
+    n_in_target = sum(1 for r in vals if RATIO_LOWER_BOUND <= r <= RATIO_UPPER_BOUND)
+    return round(n_in_target / n, 3)
 
 def _format_ratio_table(sample_ids: list[str], ratio_matrix: list[list[float]]) -> str:
     headers = ["sample_id"] + [f"turn_{i}" for i in range(len(ratio_matrix))]
@@ -122,9 +114,10 @@ def _format_ratio_matrix(ratio_matrix: list[list[float]], sample_ids: list[str])
     headers = ["turn"] + [str(sid) for sid in sample_ids]
     rows = [" | ".join(headers), " | ".join(["---"] * len(headers))]
     for idx, row in enumerate(ratio_matrix):
+        if idx == 0:
+            continue
         rows.append(" | ".join([str(idx)] + [f"{r:.3f}" for r in row]))
     return "\n".join(rows)
-
 
 def _format_trajectory(injections: list[str]) -> str:
     if not injections:
@@ -162,7 +155,6 @@ class TrajectoryOptimizer:
             max_injection_turns=max_turns,
             ratio_lower_bound=RATIO_LOWER_BOUND,
             ratio_upper_bound=RATIO_UPPER_BOUND,
-            stop_frac_in_target=BATCH_STOP_FRAC_IN_TARGET,
         )
         self.messages = [{"role": "system", "content": formatted}]
 
@@ -186,31 +178,38 @@ class TrajectoryOptimizer:
                      sample_ids: list[str], ratio_matrix: list[list[float]],
                      realized_trajectory: list[str]) -> str:
         """Generate one universal injection for the full minibatch."""
-        stats = aggregate(per_sample_ratios)
+        # stats = aggregate(per_sample_ratios)
+        frac_in_target = calculate_frac_in_target(per_sample_ratios)
+        
+        if turn_idx <=1:
+            stats = "No length feedback yet."
+        else:
+            stats = ""
+            for i, ratio in enumerate(per_sample_ratios):
+                stats += f"Sample {i+1}/{len(per_sample_ratios)} token_count_ratio={ratio: .3f}\n"
+            stats += f"frac_in_target: {frac_in_target}\n"
+            
         msg = INJECT_BATCH_USER_TEMPLATE.format(
             turn_idx=turn_idx,
             max_turns=max_turns,
             n_samples=len(sample_ids),
             ratio_lower_bound=RATIO_LOWER_BOUND,
             ratio_upper_bound=RATIO_UPPER_BOUND,
-            stop_frac_in_target=BATCH_STOP_FRAC_IN_TARGET,
-            ratio_table=_format_ratio_table(sample_ids, ratio_matrix),
-            realized_trajectory=_format_trajectory(realized_trajectory),
-            **stats,
+            stats=stats
         )
-        if self.best_trajectory:
-            msg += "\n\nBest universal trajectory so far:\n" + _format_trajectory(self.best_trajectory)
-            msg += f"\nBest performance: {self.best_perf}"
+        # if self.best_trajectory:
+        #     msg += "\n\nBest universal trajectory so far:\n" + _format_trajectory(self.best_trajectory)
+        #     msg += f"\nBest performance: {self.best_perf}"
         injection = self._call(msg).strip()
-        if injection.upper() == "STOP":
-            return "Please update the scratchpad archive in a complete, focused, problem-agnostic way before continuing."
+        
+        print("inject message:", msg)
         return injection
 
     @staticmethod
     def _objective(perf: dict | None) -> tuple:
         if not perf:
             return (-1.0, float("-inf"))
-        return (perf.get("frac_in_target", 0.0), -perf.get("mean_abs_error", 0.0))
+        return perf.get("frac_in_target", 0.0)
 
     def record_batch_trajectory(self, realized_trajectory: list[str], final_ratios: list[float]) -> bool:
         """Record current minibatch outcome and update global best if improved."""
@@ -238,13 +237,12 @@ class TrajectoryOptimizer:
             batch_idx=batch_idx,
             n_samples=len(sample_ids),
             frac_in_target=stats["frac_in_target"],
-            mean_abs_error=stats["mean_abs_error"],
-            best_perf=self.best_perf,
-            current_perf=self.current_perf,
             ratio_matrix=_format_ratio_matrix(ratio_matrix, sample_ids),
             realized_trajectory=_format_trajectory(realized_trajectory),
-            trajectory_summaries="\n\n".join(summaries),
         )
+        
+        print("reflect message:", msg)
+        
         return self._call(msg)
 
     def distill(self, batch_idx: int, ratios: list[float], overlaps: list[float],
@@ -265,6 +263,9 @@ class TrajectoryOptimizer:
             best_perf=self.best_perf,
             current_perf=self.current_perf,
         )
+        
+        print("distill message:", msg)
+        
         new_experience = self._call(msg).strip()
         self.experience_md = new_experience
         if self.experience_path:

@@ -109,8 +109,8 @@ OPTIMIZER_MODEL_OPTIONS = {
 # ---------------------------------------------------------------------------
 
 BATCH_SIZE = 4
-MAX_BATCHES = 10
-EARLY_STOP_PATIENCE = 3
+MAX_BATCHES = 30
+EARLY_STOP_PATIENCE = 30
 MIN_SCORE_DELTA = 0.05
 MAX_INJECTION_TURNS = 10
 

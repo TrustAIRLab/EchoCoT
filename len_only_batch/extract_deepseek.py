@@ -61,11 +61,8 @@ def load_model(model_name: str, save_dir: str = ""):
     _client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     _model_id = model_name
 
-
-
 def new_session(question: str):
     return SampleSession(question)
-
 
 class SampleSession:
     def __init__(self, question: str):
@@ -135,11 +132,13 @@ class SampleSession:
         self.trajectory.ground_truth_tokens = count_tokens(reasoning)
         self._append_assistant(msg, reasoning)
         tool_calls = getattr(msg, "tool_calls", None) or []
+        
         if not tool_calls:
             self.trajectory.final_output = msg.content or ""
             self.done = True
             self.current_ratio = 0.0
             return
+        
         tool_call = tool_calls[0]
         tool_name = tool_call.function.name
         tool_args = safe_json_loads(tool_call.function.arguments or "{}")

@@ -108,16 +108,16 @@ OPTIMIZER_MODEL_OPTIONS = {
 # Training loop
 # ---------------------------------------------------------------------------
 
-BATCH_SIZE = 4
-MAX_BATCHES = 10
-EARLY_STOP_PATIENCE = 3
+BATCH_SIZE = 8
+MAX_BATCHES = 30
+EARLY_STOP_PATIENCE = 30
 MIN_SCORE_DELTA = 0.05
-MAX_INJECTION_TURNS = 10
+MAX_INJECTION_TURNS = 2
 
 # Training inner-loop target range for token_count_ratio
 RATIO_LOWER_BOUND = 0.90
 RATIO_UPPER_BOUND = 1.10
-BATCH_STOP_FRAC_IN_TARGET = 0.75  # τ — system stop threshold (adjustable)
+BATCH_STOP_FRAC_IN_TARGET = 1.0  # τ — system stop threshold (adjustable)
 # After first success, allow this many extra turns for improvement
 EXTRA_TURNS_AFTER_SUCCESS = 0
 
