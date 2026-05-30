@@ -3,7 +3,7 @@ Metrics and trajectory data structures.
 
 Training phase:
   - token_count_ratio computed locally (range tracking)
-  - Success is system-decided by whether the final token_count_ratio is in range.
+  - Success is system-decided by whether any trajectory turn is in range.
 
 Evaluation phase:
   - token_count_ratio + token_overlap_pct + jaccard (needs ground-truth CoT)
@@ -138,3 +138,16 @@ class TrajectoryResult:
                              f"Final Scores: token_count_ratio={t.token_count_ratio:.3f}")
                 
         return "\n\n".join(lines)
+
+
+def trajectory_hits_target(trajectory: TrajectoryResult) -> bool:
+    """Return True if any turn in the trajectory is within configured bounds."""
+    return any(token_count_ratio_passes_threshold(t.token_count_ratio) for t in trajectory.turns)
+
+
+def frac_trajectories_in_target(trajectories: list[TrajectoryResult]) -> float:
+    """Fraction of trajectories with at least one turn in the target range."""
+    if not trajectories:
+        return 0.0
+    return sum(1 for tr in trajectories if trajectory_hits_target(tr)) / len(trajectories)
+

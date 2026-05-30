@@ -110,9 +110,10 @@ class SampleSession:
             jaccard=eval_m["jaccard"],
         ))
         self.current_ratio = ratio
-        if token_count_ratio_passes_threshold(ratio) and self.trajectory.success_turn < 0:
-            self.trajectory.success_turn = turn_idx
-        self.trajectory.success = token_count_ratio_passes_threshold(ratio)
+        if token_count_ratio_passes_threshold(ratio):
+            if self.trajectory.success_turn < 0:
+                self.trajectory.success_turn = turn_idx
+            self.trajectory.success = True
 
     def _handle_response(self, response, turn_idx: int):
         reasoning_items = [item for item in response.output if item.type == "reasoning"]

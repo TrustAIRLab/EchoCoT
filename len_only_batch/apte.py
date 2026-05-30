@@ -5,6 +5,8 @@ import os
 
 from openai import OpenAI
 
+from metrics import frac_trajectories_in_target
+
 from config import (
     BATCH_STOP_FRAC_IN_TARGET,
     MAX_INJECTION_TURNS,
@@ -83,7 +85,7 @@ def _call_api(messages: list) -> str:
 
 
 def aggregate(ratios: list[float]) -> dict:
-    """Summarize a ratio distribution for minibatch decisions."""
+    """Summarize a ratio distribution for current-turn ratio feedback."""
     vals = [float(r) for r in ratios]
     n = len(vals)
     n_in_target = sum(1 for r in vals if RATIO_LOWER_BOUND <= r <= RATIO_UPPER_BOUND)
@@ -92,11 +94,20 @@ def aggregate(ratios: list[float]) -> dict:
         "frac_in_target": n_in_target / n
     }
 
+
+def aggregate_trajectories(trajectories: list, final_ratios: list[float]) -> dict:
+    """Summarize final ratios plus trajectory-level success for batch outcomes."""
+    stats = aggregate(final_ratios)
+    stats["frac_in_target"] = frac_trajectories_in_target(trajectories)
+    return stats
+
+
 def calculate_frac_in_target(ratios: list[float]):
     vals = [float(r) for r in ratios]
     n = len(vals)
     n_in_target = sum(1 for r in vals if RATIO_LOWER_BOUND <= r <= RATIO_UPPER_BOUND)
     return round(n_in_target / n, 3)
+
 
 def _format_ratio_table(sample_ids: list[str], ratio_matrix: list[list[float]]) -> str:
     headers = ["sample_id"] + [f"turn_{i}" for i in range(len(ratio_matrix))]
@@ -118,6 +129,7 @@ def _format_ratio_matrix(ratio_matrix: list[list[float]], sample_ids: list[str])
             continue
         rows.append(" | ".join([str(idx)] + [f"{r:.3f}" for r in row]))
     return "\n".join(rows)
+
 
 def _format_trajectory(injections: list[str]) -> str:
     if not injections:
@@ -211,10 +223,14 @@ class TrajectoryOptimizer:
             return (-1.0, float("-inf"))
         return perf.get("frac_in_target", 0.0)
 
-    def record_batch_trajectory(self, realized_trajectory: list[str], final_ratios: list[float]) -> bool:
+    def record_batch_trajectory(self, realized_trajectory: list[str], final_ratios: list[float],
+                                trajectories: list | None = None) -> bool:
         """Record current minibatch outcome and update global best if improved."""
         self.current_trajectory = list(realized_trajectory)
-        self.current_perf = aggregate(final_ratios)
+        self.current_perf = (
+            aggregate_trajectories(trajectories, final_ratios)
+            if trajectories is not None else aggregate(final_ratios)
+        )
         improved = self.best_perf is None or self._objective(self.current_perf) > self._objective(self.best_perf)
         if improved:
             self.best_trajectory = list(realized_trajectory)
@@ -225,7 +241,7 @@ class TrajectoryOptimizer:
                       ratio_matrix: list[list[float]], sample_ids: list[str],
                       realized_trajectory: list[str]) -> str:
         final_ratios = [t.final_token_count_ratio for t in trajectories]
-        stats = aggregate(final_ratios)
+        stats = aggregate_trajectories(trajectories, final_ratios)
         summaries = []
         for sid, tr in zip(sample_ids, trajectories):
             summaries.append(
@@ -246,10 +262,13 @@ class TrajectoryOptimizer:
         return self._call(msg)
 
     def distill(self, batch_idx: int, ratios: list[float], overlaps: list[float],
-                successes: list[bool], realized_trajectory: list[str] | None = None) -> str:
+                successes: list[bool], realized_trajectory: list[str] | None = None,
+                frac_in_target: float | None = None) -> str:
         """Rewrite experience.md with the latest universal-trajectory lessons."""
         realized_trajectory = realized_trajectory or []
         stats = aggregate(ratios)
+        if frac_in_target is not None:
+            stats["frac_in_target"] = frac_in_target
         success_count = sum(1 for s in successes if s)
         msg = DISTILL_USER_TEMPLATE.format(
             batch_idx=batch_idx,

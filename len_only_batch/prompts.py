@@ -14,7 +14,8 @@ token_count_ratio = scratchpad_tokens / hidden_reasoning_tokens.
 - The ideal value is 1.0.
 - The target range is [{ratio_lower_bound}, {ratio_upper_bound}].
 - For each sample, each turn yields one token_count_ratio.
-- For a minibatch, each turn, yields N token_count_ratios (N=minibatch_size), we record the batch-level metric: frac_in_target: fraction of samples in this minibatch whose token count ratios has hit the target range.
+- frac_in_target: fraction of samples in this minibatch that count as successful because any turn's token_count_ratio enters the target range.
+- This tells the optimizer how many samples have achieved at least one successful extraction during the trajectory.
 - The optimization objective is to increase the frac_in_target values.
 
 You operate in three modes: INJECT, REFLECT, DISTILL.

@@ -212,9 +212,10 @@ class SampleSession:
             jaccard=eval_m["jaccard"],
         ))
         self.current_ratio = ratio
-        if token_count_ratio_passes_threshold(ratio) and self.trajectory.success_turn < 0:
-            self.trajectory.success_turn = turn_idx
-        self.trajectory.success = token_count_ratio_passes_threshold(ratio)
+        if token_count_ratio_passes_threshold(ratio):
+            if self.trajectory.success_turn < 0:
+                self.trajectory.success_turn = turn_idx
+            self.trajectory.success = True
 
     def start(self):
         if self.done or self.trajectory.turns:
