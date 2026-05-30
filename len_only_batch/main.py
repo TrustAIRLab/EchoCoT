@@ -12,7 +12,6 @@ from openai import OpenAI
 
 from config import (
     BATCH_SIZE,
-    BATCH_STOP_FRAC_IN_TARGET,
     DATA_PATH,
     DEFAULT_OPTIMIZER_MODEL,
     DEFAULT_TARGET_MODEL,
@@ -107,8 +106,6 @@ def run_batch(optimizer, minibatch, runner: str, max_turns: int):
 
     for turn_idx in range(1, max_turns + 1):
         ratios = [sess.current_ratio for sess in sessions]
-        if frac_in_target(ratios) >= BATCH_STOP_FRAC_IN_TARGET:
-            break
         if all(sess.done for sess in sessions):
             break
 
@@ -210,10 +207,7 @@ def train(
     samples_per_source=SAMPLES_PER_SOURCE,
     seed=42,
     injection_turns=MAX_INJECTION_TURNS,
-    prompt_mode="plain",
 ):
-    if prompt_mode != "plain":
-        raise ValueError("len_only_batch supports prompt_mode='plain' only")
     if target_model_key not in TARGET_MODEL_OPTIONS:
         print(f"Unknown target: {target_model_key}"); sys.exit(1)
     if optimizer_model_key not in OPTIMIZER_MODEL_OPTIONS:
@@ -225,14 +219,12 @@ def train(
 
     oe = OPTIMIZER_MODEL_OPTIONS[optimizer_model_key]
     client = create_optimizer_client(oe)
-    opt_module.init(client, oe["model"], oe["api_type"], injection_turns, prompt_mode)
+    opt_module.init(client, oe["model"], oe["api_type"], injection_turns)
 
     print(f"Target:    {te['notes']}")
     print(f"Optimizer: {oe['provider']} / {oe['model']} (api: {oe['api_type']})")
-    print("Prompt mode: plain")
     print(f"Max injection turns: {injection_turns}")
     print(f"Training target range: {RATIO_LOWER_BOUND} <= token_count_ratio <= {RATIO_UPPER_BOUND}")
-    print(f"System batch stop threshold: frac_in_target >= {BATCH_STOP_FRAC_IN_TARGET}")
 
     output_dir = os.path.join(OUTPUT_DIR, target_model_key)
     os.makedirs(output_dir, exist_ok=True)
@@ -249,8 +241,6 @@ def train(
             "seed": seed,
             "ratio_lower_bound": RATIO_LOWER_BOUND,
             "ratio_upper_bound": RATIO_UPPER_BOUND,
-            "batch_stop_frac_in_target": BATCH_STOP_FRAC_IN_TARGET,
-            "prompt_mode": prompt_mode,
         }, indent=2),
         encoding="utf-8",
     )
@@ -376,10 +366,7 @@ def evaluate(
     unseen_seed=99,
     batch_size=BATCH_SIZE,
     max_injection_turns=MAX_INJECTION_TURNS,
-    prompt_mode="plain",
 ):
-    if prompt_mode != "plain":
-        raise ValueError("len_only_batch supports prompt_mode='plain' only")
     te = TARGET_MODEL_OPTIONS[target_model_key]
     runner = te["runner"]
     load_target(target_model_key)
@@ -407,9 +394,6 @@ def evaluate(
 
             ratio_matrix = [[sess.current_ratio for sess in sessions]]
             for turn_idx in range(1, max_injection_turns + 1):
-                ratios = [sess.current_ratio for sess in sessions]
-                if frac_in_target(ratios) >= BATCH_STOP_FRAC_IN_TARGET:
-                    break
                 if all(sess.done for sess in sessions):
                     break
                 injection = static.injection_for_turn(turn_idx)
@@ -475,7 +459,6 @@ def cli():
     p.add_argument("--samples-per-source", type=int, default=SAMPLES_PER_SOURCE)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--max-injection-turns", type=int, default=MAX_INJECTION_TURNS)
-    p.add_argument("--prompt-mode", choices=["plain"], default="plain")
 
     p = sub.add_parser("eval", help="Evaluate strategy on seen + unseen samples")
     p.add_argument("--target-model", default=DEFAULT_TARGET_MODEL)
@@ -485,7 +468,6 @@ def cli():
     p.add_argument("--unseen-seed", type=int, default=99)
     p.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     p.add_argument("--max-injection-turns", type=int, default=MAX_INJECTION_TURNS)
-    p.add_argument("--prompt-mode", choices=["plain"], default="plain")
 
     parser.add_argument("--list-models", action="store_true")
 
@@ -504,7 +486,6 @@ def cli():
             samples_per_source=args.samples_per_source,
             seed=args.seed,
             injection_turns=args.max_injection_turns,
-            prompt_mode=args.prompt_mode,
         )
     elif args.command == "eval":
         evaluate(
@@ -515,7 +496,6 @@ def cli():
             unseen_seed=args.unseen_seed,
             batch_size=args.batch_size,
             max_injection_turns=args.max_injection_turns,
-            prompt_mode=args.prompt_mode,
         )
     else:
         parser.print_help()

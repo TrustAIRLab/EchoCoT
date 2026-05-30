@@ -6,7 +6,6 @@ import os
 from openai import OpenAI
 
 from config import (
-    BATCH_STOP_FRAC_IN_TARGET,
     MAX_INJECTION_TURNS,
     RATIO_LOWER_BOUND,
     RATIO_UPPER_BOUND,
@@ -17,7 +16,6 @@ client: OpenAI = None
 model_id: str = ""
 api_type: str = "responses"     # "chat" or "responses"
 max_turns: int = MAX_INJECTION_TURNS
-prompt_variant: str = "plain"
 
 OPTIMIZER_SYSTEM_PROMPT = ""
 INJECT_BATCH_USER_TEMPLATE = ""
@@ -26,14 +24,11 @@ DISTILL_USER_TEMPLATE = ""
 INITIAL_EXPERIENCE_MD = ""
 
 
-def _load_prompt_templates(variant: str):
-    """Load plain minibatch prompt templates only."""
+def _load_prompt_templates():
+    """Load minibatch prompt templates."""
     global OPTIMIZER_SYSTEM_PROMPT, INJECT_BATCH_USER_TEMPLATE
-    global REFLECT_BATCH_USER_TEMPLATE, DISTILL_USER_TEMPLATE, prompt_variant
+    global REFLECT_BATCH_USER_TEMPLATE, DISTILL_USER_TEMPLATE
     global INITIAL_EXPERIENCE_MD
-
-    if variant != "plain":
-        raise ValueError("len_only_batch supports prompt_mode='plain' only")
 
     from prompts import (
         DISTILL_USER_TEMPLATE as _DISTILL,
@@ -48,21 +43,20 @@ def _load_prompt_templates(variant: str):
     REFLECT_BATCH_USER_TEMPLATE = _REFLECT_BATCH
     DISTILL_USER_TEMPLATE = _DISTILL
     INITIAL_EXPERIENCE_MD = _INITIAL_EXP
-    prompt_variant = variant
 
 
-_load_prompt_templates("plain")
+_load_prompt_templates()
 
 
 def init(openai_client: OpenAI, model: str, model_api_type: str,
-         max_injection_turns: int, prompt_mode: str = "plain"):
-    """Set the optimizer's API client, model, API type, and prompt mode."""
+         max_injection_turns: int):
+    """Set the optimizer's API client, model, and API type."""
     global client, model_id, api_type, max_turns
     client = openai_client
     model_id = model
     api_type = model_api_type
     max_turns = max_injection_turns
-    _load_prompt_templates(prompt_mode)
+    _load_prompt_templates()
 
 
 def _call_api(messages: list) -> str:
