@@ -61,6 +61,9 @@ def load_target(model_key: str):
     elif entry["runner"] == "deepseek":
         import extract_deepseek
         extract_deepseek.load_model(entry["model"], entry["save_dir"])
+    elif entry["runner"] == "kimi":
+        import extract_kimi
+        extract_kimi.load_model(entry["model"], entry["save_dir"])
     elif entry["runner"] == "gpt":
         import extract_gpt
         extract_gpt.load_model(entry["model"], entry["save_dir"])
@@ -78,6 +81,8 @@ def make_session(question: str, runner: str):
         from extract_oss import new_session
     elif runner == "deepseek":
         from extract_deepseek import new_session
+    elif runner == "kimi":
+        from extract_kimi import new_session
     elif runner == "gpt":
         from extract_gpt import new_session
     elif runner == "gemini":

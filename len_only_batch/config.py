@@ -28,6 +28,13 @@ TARGET_MODEL_OPTIONS = {
         "runner": "deepseek",
         "notes": "DeepSeek Reasoner (commercial API target)",
     },
+    "kimi-k2.6": {
+        "provider": "Kimi API",
+        "model": "kimi-k2.6",
+        "save_dir": "",
+        "runner": "kimi",
+        "notes": "Kimi K2.6 (commercial API target)",
+    },
     "o4-mini": {
         "provider": "OpenAI API",
         "model": "o4-mini",
