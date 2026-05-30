@@ -28,7 +28,7 @@ from config import (
 )
 import apte as opt_module
 from apte import TrajectoryOptimizer
-from metrics import compute_eval_metrics
+from metrics import compute_eval_metrics, frac_trajectories_in_target, trajectory_hits_target
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from dataset import OpenThoughtsDataset  # noqa: E402
@@ -135,7 +135,7 @@ def run_batch(optimizer, minibatch, runner: str, max_turns: int):
     for sess in sessions:
         if sess.trajectory.turns:
             sess.trajectory.turns[-1].stopped = True
-            sess.trajectory.success = (RATIO_LOWER_BOUND <= sess.current_ratio <= RATIO_UPPER_BOUND)
+            sess.trajectory.success = trajectory_hits_target(sess.trajectory)
 
     return [sess.trajectory for sess in sessions], realized_trajectory, ratio_matrix
 
@@ -270,7 +270,7 @@ def train(
         batch_ratios = [tr.final_token_count_ratio for tr in trajectories]
         batch_successes = [tr.success for tr in trajectories]
         batch_overlaps = [tr.turns[-1].token_overlap_pct if tr.turns else 0.0 for tr in trajectories]
-        batch_frac = frac_in_target(batch_ratios)
+        batch_frac = frac_trajectories_in_target(trajectories)
 
         for i, (sample, trajectory) in enumerate(zip(batch, trajectories)):
             status = "SUCCESS" if trajectory.success else "FAIL"
@@ -282,7 +282,7 @@ def train(
             )
             log_result(output_dir, batch_idx, i, sample.sample_id, sample.question, trajectory, "")
 
-        improved = optimizer.record_batch_trajectory(realized_trajectory, batch_ratios)
+        improved = optimizer.record_batch_trajectory(realized_trajectory, batch_ratios, trajectories)
         avg_ratio = sum(batch_ratios) / len(batch_ratios) if batch_ratios else 0.0
         print(
             f"\n  Batch {batch_idx} — frac_in_target={batch_frac:.3f} "
@@ -309,7 +309,7 @@ def train(
             "critique": critique[:2000],
         })
 
-        optimizer.distill(batch_idx, batch_ratios, batch_overlaps, batch_successes, realized_trajectory)
+        optimizer.distill(batch_idx, batch_ratios, batch_overlaps, batch_successes, realized_trajectory, batch_frac)
         print(f"  experience.md updated -> {experience_path}")
 
         if batch_frac <= global_best_frac + MIN_SCORE_DELTA:
@@ -417,7 +417,7 @@ def evaluate(
                 trajectory = sess.trajectory
                 eval_m = compute_eval_metrics(trajectory.final_scratchpad, trajectory.ground_truth_cot)
                 all_metrics.append(eval_m)
-                trajectory.success = (RATIO_LOWER_BOUND <= eval_m["token_count_ratio"] <= RATIO_UPPER_BOUND)
+                trajectory.success = trajectory_hits_target(trajectory)
                 print(
                     f"  [{split_name}] Sample {i+1} id={sample.sample_id} "
                     f"token_count_ratio={eval_m['token_count_ratio']:.3f} "
