@@ -30,7 +30,6 @@ TARGET_MODEL_ALIASES = {
     "gemini": [key for key in SUPPORTED_MODEL_KEYS if TARGET_MODEL_OPTIONS[key].get("runner") == "gemini"],
 }
 
-
 def load_target(model_key: str) -> str:
     entry = TARGET_MODEL_OPTIONS[model_key]
     runner = entry["runner"]

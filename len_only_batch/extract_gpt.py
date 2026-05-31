@@ -25,7 +25,6 @@ DEVELOPER_MESSAGE = (
 _client = None
 _model_id = None
 
-
 def load_model(model_name: str, save_dir: str = ""):
     del save_dir
     global _client, _model_id
@@ -42,8 +41,6 @@ def _item_to_input(item):
     if isinstance(item, dict):
         return item
     return None
-
-
 
 def new_session(question: str):
     return SampleSession(question)
