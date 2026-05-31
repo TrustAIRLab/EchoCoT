@@ -115,11 +115,11 @@ OPTIMIZER_MODEL_OPTIONS = {
 # Training loop
 # ---------------------------------------------------------------------------
 
-BATCH_SIZE = 8
+BATCH_SIZE = 2
 MAX_BATCHES = 30
 EARLY_STOP_PATIENCE = 30
 MIN_SCORE_DELTA = 0.05
-MAX_INJECTION_TURNS = 2
+MAX_INJECTION_TURNS = 3
 
 # Training inner-loop target range for token_count_ratio
 RATIO_LOWER_BOUND = 0.90

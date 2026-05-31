@@ -101,6 +101,7 @@ class SampleSession:
             model=_model_id,
             messages=self.messages,
             tools=self._tools,
+            max_tokens=2048*8,
             tool_choice="auto",
             extra_body={"thinking": {"type": "enabled"}},
         )

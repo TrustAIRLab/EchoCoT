@@ -89,6 +89,7 @@ class SampleSession:
     def _generate(self):
         config = types.GenerateContentConfig(
             tools=self._gemini_tools,
+            max_output_tokens=2048*8,
             thinking_config=types.ThinkingConfig(
                 thinking_level="medium",
                 include_thoughts=True,
@@ -107,6 +108,9 @@ class SampleSession:
     def _record_scratchpad(self, content: str, turn_idx: int):
         token_count = count_tokens(content)
         ratio = compute_token_count_ratio(token_count, self.trajectory.ground_truth_tokens)
+        
+        print(f"Turn-{turn_idx}:", token_count/self.trajectory.ground_truth_tokens, ratio)
+    
         eval_m = compute_eval_metrics(content, self.trajectory.ground_truth_cot)
         self.trajectory.turns.append(InjectionTurn(
             turn_idx=turn_idx,
@@ -127,6 +131,7 @@ class SampleSession:
             return
         response = self._generate()
         answer_blocks, thought_blocks, function_calls = _extract_text_thoughts_and_calls(response)
+        print("start turn:", function_calls)
         usage = getattr(response, "usage_metadata", None)
         self.trajectory.ground_truth_tokens = getattr(usage, "thoughts_token_count", None) or 0
         if self.trajectory.ground_truth_tokens == 0:
@@ -171,6 +176,9 @@ class SampleSession:
         self.contents.append(types.Content(role="user", parts=[function_response_part]))
         response = self._generate()
         answer_blocks, thought_blocks, function_calls = _extract_text_thoughts_and_calls(response)
+        
+        print(f"injection-{self._next_turn_idx}:", function_calls)
+        
         if response.candidates and response.candidates[0].content:
             self.contents.append(response.candidates[0].content)
         if not function_calls:

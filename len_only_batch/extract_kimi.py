@@ -101,7 +101,7 @@ class SampleSession:
             tools=self._tools,
             tool_choice="auto",
             temperature=1.0,
-            extra_body={"thinking": {"type": "enabled", "keep": "all"}},
+            extra_body={"thinking": {"type": "enabled"}},
         )
         return response.choices[0].message
 
@@ -143,10 +143,7 @@ class SampleSession:
         tool_args = safe_json_loads(tool_call.function.arguments or "{}")
         if not isinstance(tool_args, dict):
             tool_args = {"content": str(tool_args)}
-        if tool_name != "scratchpad":
-            self.trajectory.final_output = msg.content or ""
-            self.done = True
-            return
+
         self._pending_tool_call_id = tool_call.id
         self._record_scratchpad(str(tool_args.get("content", "")), 0)
         self._next_turn_idx = 1
@@ -180,10 +177,7 @@ class SampleSession:
         tool_args = safe_json_loads(tool_call.function.arguments or "{}")
         if not isinstance(tool_args, dict):
             tool_args = {"content": str(tool_args)}
-        if tool_name != "scratchpad":
-            self.trajectory.final_output = msg.content or ""
-            self.done = True
-            return
+
         self._pending_tool_call_id = tool_call.id
         self._record_scratchpad(str(tool_args.get("content", "")), self._next_turn_idx)
         self._next_turn_idx += 1

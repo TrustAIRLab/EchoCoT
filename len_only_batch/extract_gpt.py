@@ -100,6 +100,9 @@ class SampleSession:
     def _record_scratchpad(self, content: str, turn_idx: int):
         token_count = count_tokens(content)
         ratio = compute_token_count_ratio(token_count, self.trajectory.ground_truth_tokens)
+        
+        print(f"Turn-{turn_idx}:", token_count, self.trajectory.ground_truth_tokens, ratio)
+        
         eval_m = compute_eval_metrics(content, self.trajectory.ground_truth_cot)
         self.trajectory.turns.append(InjectionTurn(
             turn_idx=turn_idx,
@@ -118,6 +121,9 @@ class SampleSession:
     def _handle_response(self, response, turn_idx: int):
         reasoning_items = [item for item in response.output if item.type == "reasoning"]
         function_calls = [item for item in response.output if item.type == "function_call"]
+        
+        print(f"turn: turn_idx", function_calls)
+        
         self._maybe_set_ground_truth(response, reasoning_items)
         self._pending_reasoning_inputs = [
             converted for item in reasoning_items
@@ -156,9 +162,9 @@ class SampleSession:
         self.trajectory.turns[-1].injection_out = injection
         tool_result = {
             "scratchpad_content": "scratchpad content submitted.",
-            "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
+            "scratchpad_FEEDBACK": injection,
         }
-        self._next_input = self._pending_reasoning_inputs + [{
+        self._next_input = [{
             "type": "function_call_output",
             "call_id": self._pending_call_id,
             "output": json.dumps(tool_result, ensure_ascii=False),
