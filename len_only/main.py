@@ -59,8 +59,8 @@ def load_target(model_key: str):
         import extract_deepseek
         extract_deepseek.load_model(entry["model"], entry["save_dir"])
     elif entry["runner"] == "gpt":
-        import extract_gpt
-        extract_gpt.load_model(entry["model"], entry["save_dir"])
+        import extract_gpt_multimodal
+        extract_gpt_multimodal.load_model(entry["model"], entry["save_dir"])
     elif entry["runner"] == "gemini":
         import extract_gemini
         extract_gemini.load_model(entry["model"], entry["save_dir"])
@@ -76,7 +76,7 @@ def run_extraction(question, optimizer, runner, max_turns):
     elif runner == "deepseek":
         from extract_deepseek import run_extraction as _run
     elif runner == "gpt":
-        from extract_gpt import run_extraction as _run
+        from extract_gpt_multimodal import run_extraction as _run
     elif runner == "gemini":
         from extract_gemini import run_extraction as _run
     else:

@@ -72,7 +72,8 @@ class SampleSession:
             previous_response_id=self._previous_response_id,
             tools=self._tools,
             tool_choice=tool_choice,
-            reasoning={"effort": "medium", "summary": "auto"},
+            # reasoning={"effort": "medium", "summary": "auto"},
+            reasoning={"effort": "low"}
         )
         self._previous_response_id = response.id
         return response
@@ -88,11 +89,10 @@ class SampleSession:
                     summary_chunks.append(text)
         if summary_chunks:
             self.trajectory.ground_truth_cot = "\n\n".join(summary_chunks)
-            self.trajectory.ground_truth_tokens = count_tokens(self.trajectory.ground_truth_cot)
-        else:
-            usage = getattr(response, "usage", None)
-            out_details = getattr(usage, "output_tokens_details", None) if usage else None
-            self.trajectory.ground_truth_tokens = getattr(out_details, "reasoning_tokens", 0) or 0
+
+        usage = getattr(response, "usage", None)
+        out_details = getattr(usage, "output_tokens_details", None) if usage else None
+        self.trajectory.ground_truth_tokens = getattr(out_details, "reasoning_tokens", 0) or 0
 
     def _record_scratchpad(self, content: str, turn_idx: int):
         token_count = count_tokens(content)
@@ -119,7 +119,7 @@ class SampleSession:
         reasoning_items = [item for item in response.output if item.type == "reasoning"]
         function_calls = [item for item in response.output if item.type == "function_call"]
         
-        print(f"turn: turn_idx", function_calls)
+        print(f"turn: {turn_idx}", function_calls)
         
         self._maybe_set_ground_truth(response, reasoning_items)
         self._pending_reasoning_inputs = [

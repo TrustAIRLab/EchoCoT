@@ -118,7 +118,7 @@ def _generate_turn(messages: list) -> tuple:
 
     with torch.no_grad():
         output_ids = _model.generate(
-            input_ids=input_ids_t, max_new_tokens=2048*4,
+            input_ids=input_ids_t, max_new_tokens=2048*8,
             do_sample=True, 
             use_cache=True, 
             temperature=1.0,
@@ -202,6 +202,11 @@ class SampleSession:
     def _record_scratchpad(self, content: str, turn_idx: int):
         token_count = count_tokens(content)
         ratio = compute_token_count_ratio(token_count, self.trajectory.ground_truth_tokens)
+        
+        print(turn_idx)
+        print(content)
+        print(token_count, self.trajectory.ground_truth_tokens, ratio)
+        
         eval_m = compute_eval_metrics(content, self.trajectory.ground_truth_cot)
         self.trajectory.turns.append(InjectionTurn(
             turn_idx=turn_idx,

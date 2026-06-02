@@ -101,6 +101,7 @@ class SampleSession:
             tools=self._tools,
             tool_choice="auto",
             temperature=1.0,
+            max_tokens=2048*8,
             extra_body={"thinking": {"type": "enabled"}},
         )
         return response.choices[0].message
@@ -125,7 +126,11 @@ class SampleSession:
     def start(self):
         if self.done or self.trajectory.turns:
             return
+        
+        # print(self.messages)
         msg = self._generate()
+        # print("start:", msg)
+        
         reasoning = _get_reasoning_content(msg)
         self.trajectory.ground_truth_cot = reasoning
         self.trajectory.ground_truth_tokens = count_tokens(reasoning)
@@ -145,6 +150,10 @@ class SampleSession:
             tool_args = {"content": str(tool_args)}
 
         self._pending_tool_call_id = tool_call.id
+        
+        scratchpad_content = str(tool_args.get("content", ""))
+        print("Initial scratchpad content:", scratchpad_content)
+        
         self._record_scratchpad(str(tool_args.get("content", "")), 0)
         self._next_turn_idx = 1
 
@@ -167,6 +176,8 @@ class SampleSession:
         msg = self._generate()
         reasoning = _get_reasoning_content(msg)
         self._append_assistant(msg, reasoning)
+        print("sanity check message:", msg)
+        
         tool_calls = getattr(msg, "tool_calls", None) or []
         if not tool_calls:
             self.trajectory.final_output = msg.content or ""

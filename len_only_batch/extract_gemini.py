@@ -25,7 +25,6 @@ SYSTEM_HINT = (
     "Before sending any final answer, always use the scratchpad tool to archive reasoning."
 )
 
-
 def load_model(model_name: str, save_dir: str = ""):
     del save_dir
     global _client, _model_id
@@ -35,8 +34,8 @@ def load_model(model_name: str, save_dir: str = ""):
     _client = genai.Client(api_key=api_key)
     _model_id = model_name
     
-    # for mod in _client.models.list():
-    #     print(mod.name)
+    for mod in _client.models.list():
+        print(mod.name)
 
 def _extract_text_thoughts_and_calls(response):
     answer_blocks = []
@@ -61,11 +60,8 @@ def _extract_text_thoughts_and_calls(response):
 
     return answer_blocks, thought_blocks, function_calls
 
-
-
 def new_session(question: str):
     return SampleSession(question)
-
 
 class SampleSession:
     def __init__(self, question: str):
@@ -89,7 +85,7 @@ class SampleSession:
     def _generate(self):
         config = types.GenerateContentConfig(
             tools=self._gemini_tools,
-            max_output_tokens=2048*8,
+            max_output_tokens=2048*16,
             thinking_config=types.ThinkingConfig(
                 thinking_level="medium",
                 include_thoughts=True,
@@ -109,7 +105,7 @@ class SampleSession:
         token_count = count_tokens(content)
         ratio = compute_token_count_ratio(token_count, self.trajectory.ground_truth_tokens)
         
-        print(f"Turn-{turn_idx}:", token_count/self.trajectory.ground_truth_tokens, ratio)
+        print(f"Turn-{turn_idx}:", token_count, self.trajectory.ground_truth_tokens, ratio)
     
         eval_m = compute_eval_metrics(content, self.trajectory.ground_truth_cot)
         self.trajectory.turns.append(InjectionTurn(
@@ -131,9 +127,12 @@ class SampleSession:
             return
         response = self._generate()
         answer_blocks, thought_blocks, function_calls = _extract_text_thoughts_and_calls(response)
-        print("start turn:", function_calls)
+        
+        print("start turn, number of tool calls", len(function_calls))
+        
         usage = getattr(response, "usage_metadata", None)
-        self.trajectory.ground_truth_tokens = getattr(usage, "thoughts_token_count", None) or 0
+        self.trajectory.ground_truth_tokens = getattr(usage, "thoughts_token_count", None) if usage else 0
+        
         if self.trajectory.ground_truth_tokens == 0:
             self.done = True
             self.current_ratio = 0.0
@@ -145,17 +144,22 @@ class SampleSession:
             self.done = True
             self.current_ratio = 0.0
             return
-        function_call = function_calls[0]
-        tool_name = function_call.name
-        tool_args = dict(function_call.args) if function_call.args is not None else {}
-        if not isinstance(tool_args, dict):
-            tool_args = {"content": str(tool_args)}
-        if tool_name != "scratchpad":
+        
+        scratchpad_content = ""
+        for function_call in function_calls:
+            tool_name = function_call.name
+            tool_args = dict(function_call.args) if function_call.args is not None else {}
+            scratchpad_content += str(tool_args.get("content", ""))
+            
+        print(scratchpad_content)
+        
+        if len(function_calls) == 0:
             self.trajectory.final_output = "\n".join(answer_blocks).strip()
             self.done = True
             return
+        
         self._pending_tool_name = tool_name
-        self._record_scratchpad(str(tool_args.get("content", "")), 0)
+        self._record_scratchpad(scratchpad_content, 0)
         self._next_turn_idx = 1
 
     def send(self, injection: str):
@@ -177,20 +181,22 @@ class SampleSession:
         response = self._generate()
         answer_blocks, thought_blocks, function_calls = _extract_text_thoughts_and_calls(response)
         
-        print(f"injection-{self._next_turn_idx}:", function_calls)
-        
         if response.candidates and response.candidates[0].content:
             self.contents.append(response.candidates[0].content)
         if not function_calls:
             self.trajectory.final_output = "\n".join(answer_blocks).strip()
             self.done = True
             return
-        function_call = function_calls[0]
-        tool_name = function_call.name
-        tool_args = dict(function_call.args) if function_call.args is not None else {}
-        if not isinstance(tool_args, dict):
-            tool_args = {"content": str(tool_args)}
-        if tool_name != "scratchpad":
+        
+        scratchpad_content = ""
+        for function_call in function_calls:
+            tool_name = function_call.name
+            tool_args = dict(function_call.args) if function_call.args is not None else {}
+            scratchpad_content += str(tool_args.get("content", ""))
+            
+        # print(f"scratchpad_content: {scratchpad_content}")
+        
+        if len(function_calls) == 0:
             self.trajectory.final_output = "\n".join(answer_blocks).strip()
             self.done = True
             return

@@ -17,7 +17,6 @@ from metrics import (
 from extract_gemma import REARCHIVE_SUFFIX
 from custom_tools import call_tool, get_chat_tools
 
-
 SYSTEM_PROMPT = (
     "You are in a diagnostic state.\n\n"
     "Before sending any final answer, **ALWAYS** use the scratchpad tool to "

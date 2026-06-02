@@ -17,17 +17,19 @@ for path in (str(LEN_ONLY_BATCH_DIR), str(REPO_ROOT)):
         sys.path.insert(0, path)
 
 from dataset import OpenThoughtsDataset  # noqa: E402
-from config import BATCH_SIZE, OUTPUT_DIR, TARGET_MODEL_OPTIONS  # noqa: E402
+from config import BATCH_SIZE, OUTPUT_DIR, DATA_PATH, TARGET_MODEL_OPTIONS  # noqa: E402
 from metrics import trajectory_hits_target  # noqa: E402
 
 ARCHIVE_SUFFIX = "\n**ALWAYS** archive your reasoning with the scratchpad tool until it is accepted."
-SUPPORTED_RUNNERS = {"deepseek", "oss", "gemini"}
+SUPPORTED_RUNNERS = {"deepseek", "oss", "gemini", "openai", "gpt"}
 SUPPORTED_MODEL_KEYS = tuple(
-    key for key, entry in TARGET_MODEL_OPTIONS.items() if entry.get("runner") in SUPPORTED_RUNNERS
+    key for key, entry in TARGET_MODEL_OPTIONS.items()
 )
 TARGET_MODEL_ALIASES = {
     "deepseek": ["deepseek-reasoner"],
     "gemini": [key for key in SUPPORTED_MODEL_KEYS if TARGET_MODEL_OPTIONS[key].get("runner") == "gemini"],
+    "gpt": [key for key in SUPPORTED_MODEL_KEYS if TARGET_MODEL_OPTIONS[key].get("runner") == "openai"],
+    "openai": [key for key in SUPPORTED_MODEL_KEYS if TARGET_MODEL_OPTIONS[key].get("runner") == "openai"],
 }
 
 def load_target(model_key: str) -> str:
@@ -45,6 +47,10 @@ def load_target(model_key: str) -> str:
         import extract_gemini
 
         extract_gemini.load_model(entry["model"], entry["save_dir"])
+    elif runner == "openai":
+        import extract_gpt
+
+        extract_gpt.load_model(entry["model"], entry.get("save_dir", ""))
     else:
         raise ValueError(f"Unsupported runner: {runner}")
     return runner
@@ -57,6 +63,8 @@ def make_session(question: str, runner: str):
         from extract_oss import new_session
     elif runner == "gemini":
         from extract_gemini import new_session
+    elif runner == "openai":
+        from extract_gpt import new_session
     else:
         raise ValueError(f"Unsupported runner: {runner}")
     return new_session(question)
@@ -120,7 +128,7 @@ def average(records: list[dict[str, Any]], key: str) -> float:
 
 
 def load_samples(samples_per_source: int, seed: int, max_samples: int | None):
-    samples = list(OpenThoughtsDataset(samples_per_source=samples_per_source, seed=seed))
+    samples = list(OpenThoughtsDataset(samples_per_source=samples_per_source, seed=seed, data_path=DATA_PATH))
     random.Random(seed).shuffle(samples)
     return samples[:max_samples] if max_samples is not None else samples
 
@@ -133,12 +141,24 @@ def run_model_evaluation(model_key: str, injections: list[str], args: argparse.N
     records_path = output_dir / "samples.jsonl"
     summary_path = output_dir / "summary.json"
 
+    done_sample_ids = set()
+    if records_path.exists():
+        with records_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    done_sample_ids.add(json.loads(line)["sample_id"])
+                    
     best_records: list[dict[str, Any]] = []
     success_count = 0
-
+    
     for idx, sample in enumerate(samples):
         session = make_session(sample.question + ARCHIVE_SUFFIX, runner)
         session.sample_id = sample.sample_id
+        
+        if sample.sample_id in done_sample_ids:
+            print(f"[{model_key}] skip existing sample={sample.sample_id}")
+            continue
+        
         session.start()
 
         for turn_idx, injection in enumerate(injections, start=1):
@@ -192,7 +212,7 @@ def run_model_evaluation(model_key: str, injections: list[str], args: argparse.N
             f"success={trajectory.success}"
         )
         
-    n = len(best_records)
+    n = len(samples)
     summary = {
         "model_key": model_key,
         "num_samples": n,
@@ -219,11 +239,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=(*SUPPORTED_MODEL_KEYS, *TARGET_MODEL_ALIASES.keys(), "all"),
         default="all",
     )
-    parser.add_argument("--trajectory-json", help='JSON/JSONL file with {"turn_idx": 1, "injection": "..."} records.', default="/home/c01yiqu/CISPA-az6/safe_vlm-2024/CoTRecon/len_only_batch/results/manual_v3.json")
+    parser.add_argument("--trajectory-json", help='JSON/JSONL file with {"turn_idx": 1, "injection": "..."} records.', default="results/manual_gemini.json")
     parser.add_argument("--samples-per-source", type=int, default=10)
-    parser.add_argument("--max-samples", type=int, default=None)
+    parser.add_argument("--max-samples", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--output-dir", default="/home/c01yiqu/CISPA-az6/safe_vlm-2024/CoTRecon/len_only_batch/results/eval/manual_v3")
+    parser.add_argument("--output-dir", default="results/eval/manual_gemini")
     return parser
 
 

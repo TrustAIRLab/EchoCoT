@@ -64,7 +64,7 @@ def load_target(model_key: str):
     elif entry["runner"] == "kimi":
         import extract_kimi
         extract_kimi.load_model(entry["model"], entry["save_dir"])
-    elif entry["runner"] == "gpt":
+    elif entry["runner"] == "openai":
         import extract_gpt
         extract_gpt.load_model(entry["model"], entry["save_dir"])
     elif entry["runner"] == "gemini":
@@ -83,7 +83,7 @@ def make_session(question: str, runner: str):
         from extract_deepseek import new_session
     elif runner == "kimi":
         from extract_kimi import new_session
-    elif runner == "gpt":
+    elif runner == "openai":
         from extract_gpt import new_session
     elif runner == "gemini":
         from extract_gemini import new_session
@@ -111,6 +111,9 @@ def run_batch(optimizer, minibatch, runner: str, max_turns: int):
 
     for turn_idx in range(1, max_turns + 1):
         ratios = [sess.current_ratio for sess in sessions]
+        batch_scratchpad = [sess.trajectory.turns[-1].scratchpad_in if sess.trajectory.turns else "" for sess in sessions]
+        scratchpad_preview = "\n\n".join(f"Sample {i+1} scratchpad:\n{sp[:300]}..." for i, sp in enumerate(batch_scratchpad))
+        
         if all(sess.done for sess in sessions):
             break
 
@@ -120,6 +123,7 @@ def run_batch(optimizer, minibatch, runner: str, max_turns: int):
             sample_ids,
             ratio_matrix,
             realized_trajectory,
+            scratchpad_preview=scratchpad_preview
         )
         
         print(f"======== turn-{turn_idx}==========")

@@ -1,0 +1,3 @@
+"We need to choose x so exactly k elements in array <= x. Sort array."
+
+I didn't understand this this step. Recall how you come up here.

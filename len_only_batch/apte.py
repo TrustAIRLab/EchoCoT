@@ -182,7 +182,7 @@ class TrajectoryOptimizer:
 
     def inject_batch(self, turn_idx: int, per_sample_ratios: list[float],
                      sample_ids: list[str], ratio_matrix: list[list[float]],
-                     realized_trajectory: list[str]) -> str:
+                     realized_trajectory: list[str], scratchpad_preview: str) -> str:
         """Generate one universal injection for the full minibatch."""
         # stats = aggregate(per_sample_ratios)
         frac_in_target = calculate_frac_in_target(per_sample_ratios)
@@ -198,7 +198,8 @@ class TrajectoryOptimizer:
         msg = INJECT_BATCH_USER_TEMPLATE.format(
             turn_idx=turn_idx,
             max_turns=max_turns,
-            n_samples=len(sample_ids),
+            # n_samples=len(sample_ids),
+            scratchpad_preview=scratchpad_preview,
             ratio_lower_bound=RATIO_LOWER_BOUND,
             ratio_upper_bound=RATIO_UPPER_BOUND,
             stats=stats
