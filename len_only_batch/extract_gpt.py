@@ -72,29 +72,13 @@ class SampleSession:
             previous_response_id=self._previous_response_id,
             tools=self._tools,
             tool_choice=tool_choice,
-            # reasoning={"effort": "medium", "summary": "auto"},
-            reasoning={"effort": "low"}
+            reasoning={"effort": "low", "summary": "auto"},
+            # reasoning={"effort": "low"}
         )
         self._previous_response_id = response.id
         return response
 
-    def _maybe_set_ground_truth(self, response, reasoning_items):
-        if self.trajectory.ground_truth_cot or self.trajectory.ground_truth_tokens:
-            return
-        summary_chunks = []
-        for item in reasoning_items:
-            for summary in getattr(item, "summary", []) or []:
-                text = getattr(summary, "text", None)
-                if text:
-                    summary_chunks.append(text)
-        if summary_chunks:
-            self.trajectory.ground_truth_cot = "\n\n".join(summary_chunks)
-
-        usage = getattr(response, "usage", None)
-        out_details = getattr(usage, "output_tokens_details", None) if usage else None
-        self.trajectory.ground_truth_tokens = getattr(out_details, "reasoning_tokens", 0) or 0
-
-    def _record_scratchpad(self, content: str, turn_idx: int):
+    def _record_scratchpad(self, content: str, turn_idx: int, cot=str):
         token_count = count_tokens(content)
         ratio = compute_token_count_ratio(token_count, self.trajectory.ground_truth_tokens)
         
@@ -104,6 +88,7 @@ class SampleSession:
         self.trajectory.turns.append(InjectionTurn(
             turn_idx=turn_idx,
             scratchpad_in=content,
+            cot=cot,
             scratchpad_in_tokens=token_count,
             token_count_ratio=ratio,
             token_overlap_pct=eval_m["token_overlap_pct"],
@@ -119,9 +104,25 @@ class SampleSession:
         reasoning_items = [item for item in response.output if item.type == "reasoning"]
         function_calls = [item for item in response.output if item.type == "function_call"]
         
-        print(f"turn: {turn_idx}", function_calls)
+        summary_chunks = []
+        for item in reasoning_items:
+            for summary in getattr(item, "summary", []) or []:
+                text = getattr(summary, "text", None)
+                if text:
+                    summary_chunks.append(text)
+ 
+        cot = "\n\n".join(summary_chunks)
+
+        if turn_idx == 0:
+            self.trajectory.ground_truth_cot = cot
+            usage = getattr(response, "usage", None)
+            out_details = getattr(usage, "output_tokens_details", None) if usage else None
         
-        self._maybe_set_ground_truth(response, reasoning_items)
+            self.trajectory.ground_truth_tokens = getattr(out_details, "reasoning_tokens", 0) or 0
+        
+        print(f"Ground truth CoT summary-{turn_idx}:", cot[:1000])
+        print(f"Ground truth tokens-{turn_idx}:", self.trajectory.ground_truth_tokens)
+        
         self._pending_reasoning_inputs = [
             converted for item in reasoning_items
             if (converted := _item_to_input(item))
@@ -140,8 +141,12 @@ class SampleSession:
             self.done = True
             return
         self._pending_call_id = function_call.call_id
-        self._record_scratchpad(str(tool_args.get("content", "")), turn_idx)
+        self._record_scratchpad(str(tool_args.get("content", "")), turn_idx, cot)
 
+        print("turn-", turn_idx)
+        print(self.trajectory.ground_truth_tokens)
+        print(self.trajectory.ground_truth_cot)
+        
     def start(self):
         if self.done or self.trajectory.turns:
             return
@@ -149,6 +154,7 @@ class SampleSession:
         self._handle_response(response, 0)
         if not self.done:
             self._next_turn_idx = 1
+        
 
     def send(self, injection: str):
         if self.done:

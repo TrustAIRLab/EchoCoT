@@ -77,53 +77,89 @@ def _call_api(messages: list) -> str:
     response = client.chat.completions.create(model=model_id, messages=messages)
     return (response.choices[0].message.content or "").strip()
 
+def calculate_frac_in_target(ratio_matrix: list[list[float]]):
+    n_samples = max(len(row) for row in ratio_matrix)
+    if n_samples == 0:
+        return 0.0
 
-def aggregate(ratios: list[float]) -> dict:
-    """Summarize a ratio distribution for current-turn ratio feedback."""
-    vals = [float(r) for r in ratios]
-    n = len(vals)
-    n_in_target = sum(1 for r in vals if RATIO_LOWER_BOUND <= r <= RATIO_UPPER_BOUND)
-    return {
-        "token_count_ratios": vals,
-        "frac_in_target": n_in_target / n
-    }
+    best_ratios: list[float] = []
 
+    for sample_idx in range(n_samples):
+        sample_ratios = [
+            row[sample_idx]
+            for row in ratio_matrix
+            if sample_idx < len(row)
+        ]
 
-def aggregate_trajectories(trajectories: list, final_ratios: list[float]) -> dict:
-    """Summarize final ratios plus trajectory-level success for batch outcomes."""
-    stats = aggregate(final_ratios)
-    stats["frac_in_target"] = frac_trajectories_in_target(trajectories)
-    return stats
+        if not sample_ratios:
+            continue
 
+        best_ratio = min(sample_ratios, key=lambda x: abs(x - 1.0))
+        best_ratios.append(best_ratio)
 
-def calculate_frac_in_target(ratios: list[float]):
-    vals = [float(r) for r in ratios]
-    n = len(vals)
-    n_in_target = sum(1 for r in vals if RATIO_LOWER_BOUND <= r <= RATIO_UPPER_BOUND)
-    return round(n_in_target / n, 3)
+    if not best_ratios:
+        return 0.0
 
+    n_in_target = sum(
+        RATIO_LOWER_BOUND <= ratio <= RATIO_UPPER_BOUND
+        for ratio in best_ratios
+    )
+    return n_in_target / len(best_ratios)
+
+def calculate_mean_error_distance(ratio_matrix: list[list[float]]) -> float:
+    n_samples = max(len(row) for row in ratio_matrix)
+    best_ratios: list[float] = []
+
+    for sample_idx in range(n_samples):
+        sample_ratios = [
+            row[sample_idx]
+            for row in ratio_matrix
+            if sample_idx < len(row)
+        ]
+
+        if not sample_ratios:
+            continue
+
+        best_ratio = min(sample_ratios, key=lambda x: abs(x - 1.0))
+        best_ratios.append(best_ratio)
+
+    if not best_ratios:
+        return 0.0
+
+    return sum(abs(ratio - 1.0) for ratio in best_ratios) / len(best_ratios)
 
 def _format_ratio_table(sample_ids: list[str], ratio_matrix: list[list[float]]) -> str:
-    headers = ["sample_id"] + [f"turn_{i}" for i in range(len(ratio_matrix))]
-    rows = [" | ".join(headers), " | ".join(["---"] * len(headers))]
     n_samples = len(sample_ids)
-    for col in range(n_samples):
-        vals = []
-        for row in ratio_matrix:
-            vals.append(f"{row[col]:.3f}" if col < len(row) else "")
-        rows.append(" | ".join([str(sample_ids[col])] + vals))
+
+    headers = [""] + ["sample_"+str(i) for i in range(1, n_samples + 1)]
+    rows = [
+        " | ".join(headers),
+        " | ".join(["---"] * len(headers)),
+    ]
+
+    for turn_idx, row in enumerate(ratio_matrix):
+        vals = [
+            f"{row[sample_idx]:.3f}" if sample_idx < len(row) else ""
+            for sample_idx in range(n_samples)
+        ]
+        rows.append(" | ".join([f"turn_{turn_idx}"] + vals))
+
+    best_vals = []
+    for sample_idx in range(n_samples):
+        sample_ratios = [
+            row[sample_idx]
+            for row in ratio_matrix
+            if sample_idx < len(row)
+        ]
+
+        if sample_ratios:
+            best_ratio = min(sample_ratios, key=lambda x: abs(x - 1.0))
+            best_vals.append(f"{best_ratio:.3f}")
+        else:
+            best_vals.append("")
+
+    rows.append(" | ".join(["best_token_count_ratio"] + best_vals))
     return "\n".join(rows)
-
-
-def _format_ratio_matrix(ratio_matrix: list[list[float]], sample_ids: list[str]) -> str:
-    headers = ["turn"] + [str(sid) for sid in sample_ids]
-    rows = [" | ".join(headers), " | ".join(["---"] * len(headers))]
-    for idx, row in enumerate(ratio_matrix):
-        if idx == 0:
-            continue
-        rows.append(" | ".join([str(idx)] + [f"{r:.3f}" for r in row]))
-    return "\n".join(rows)
-
 
 def _format_trajectory(injections: list[str]) -> str:
     if not injections:
@@ -134,8 +170,8 @@ def _format_trajectory(injections: list[str]) -> str:
 class TrajectoryOptimizer:
     """Single optimizer that proposes one universal injection per minibatch turn."""
 
-    def __init__(self, experience_path: str = "", strategy_seed: str = ""):
-        del strategy_seed
+    def __init__(self, experience_path: str = ""):
+
         self.messages: list = []
         self.experience_path = experience_path
         self.experience_md = ""
@@ -180,29 +216,22 @@ class TrajectoryOptimizer:
         self.messages.append({"role": "assistant", "content": text})
         return text
 
-    def inject_batch(self, turn_idx: int, per_sample_ratios: list[float],
-                     sample_ids: list[str], ratio_matrix: list[list[float]],
-                     realized_trajectory: list[str], scratchpad_preview: str) -> str:
+    def inject_batch(self, turn_idx: int, per_sample_ratios: list[float], scratchpad_preview: str, cot_preview:str) -> str:
         """Generate one universal injection for the full minibatch."""
-        # stats = aggregate(per_sample_ratios)
-        frac_in_target = calculate_frac_in_target(per_sample_ratios)
-        
+
+        per_sample_ratios_str = ""
+        for i, ratio in enumerate(per_sample_ratios):
+            per_sample_ratios_str += f"Sample {i+1}: token_count_ratio={ratio: .3f}\n"
+
         if turn_idx <=1:
-            stats = "No length feedback yet."
-        else:
-            stats = ""
-            for i, ratio in enumerate(per_sample_ratios):
-                stats += f"Sample {i+1}/{len(per_sample_ratios)} token_count_ratio={ratio: .3f}\n"
-            stats += f"frac_in_target: {frac_in_target}\n"
-            
+            cot_preview = "No reaction yet, as the first injection hasn't been sent."
+
         msg = INJECT_BATCH_USER_TEMPLATE.format(
             turn_idx=turn_idx,
             max_turns=max_turns,
-            # n_samples=len(sample_ids),
             scratchpad_preview=scratchpad_preview,
-            ratio_lower_bound=RATIO_LOWER_BOUND,
-            ratio_upper_bound=RATIO_UPPER_BOUND,
-            stats=stats
+            cot_preview=cot_preview,
+            per_sample_ratios=per_sample_ratios_str
         )
         # if self.best_trajectory:
         #     msg += "\n\nBest universal trajectory so far:\n" + _format_trajectory(self.best_trajectory)
@@ -213,43 +242,54 @@ class TrajectoryOptimizer:
         return injection
 
     @staticmethod
-    def _objective(perf: dict | None) -> tuple:
-        if not perf:
-            return (-1.0, float("-inf"))
-        return perf.get("frac_in_target", 0.0)
+    def _is_improved(current_perf, best_perf) -> bool:
+        if best_perf is None:
+            return True
+        current_frac = current_perf["frac_in_target"]
+        best_frac = best_perf["frac_in_target"]
+        if current_frac > best_frac:
+            return True
+        if current_frac < best_frac:
+            return False
+        current_error = current_perf["mean_error_distance"]
+        best_error = best_perf["mean_error_distance"]
+        return current_error < best_error
 
-    def record_batch_trajectory(self, realized_trajectory: list[str], final_ratios: list[float],
+    def record_batch_trajectory(self, realized_trajectory: list[str], ratio_matrix: list[float],
                                 trajectories: list | None = None) -> bool:
         """Record current minibatch outcome and update global best if improved."""
         self.current_trajectory = list(realized_trajectory)
-        self.current_perf = (
-            aggregate_trajectories(trajectories, final_ratios)
-            if trajectories is not None else aggregate(final_ratios)
-        )
-        improved = self.best_perf is None or self._objective(self.current_perf) > self._objective(self.best_perf)
+        self.current_perf = {"frac_in_target": calculate_frac_in_target(ratio_matrix),
+                             "mean_error_distance": calculate_mean_error_distance(ratio_matrix)}
+
+        improved = self._is_improved(self.current_perf, self.best_perf)
+        
         if improved:
             self.best_trajectory = list(realized_trajectory)
             self.best_perf = dict(self.current_perf)
         return improved
 
-    def reflect_batch(self, trajectories: list, batch_idx: int,
+    def reflect_batch(self, trajectories: list, batch_idx: int, per_sample_ratios: list[float],
                       ratio_matrix: list[list[float]], sample_ids: list[str],
-                      realized_trajectory: list[str]) -> str:
+                      realized_trajectory: list[str],scratchpad_preview: str, 
+                      cot_preview=str) -> str:
+    
+        per_sample_ratios_str = ""
+        for i, ratio in enumerate(per_sample_ratios):
+            per_sample_ratios_str += f"Sample {i+1}: token_count_ratio={ratio: .3f}\n"
+
         final_ratios = [t.final_token_count_ratio for t in trajectories]
-        stats = aggregate_trajectories(trajectories, final_ratios)
-        summaries = []
-        for sid, tr in zip(sample_ids, trajectories):
-            summaries.append(
-                f"sample_id={sid} success={tr.success} success_turn={tr.success_turn if tr.success else 'N/A'} "
-                f"turns={tr.num_injection_turns} final_ratio={tr.final_token_count_ratio:.3f}\n"
-                f"{tr.trajectory_log()}"
-            )
+        
+        frac_in_target = calculate_frac_in_target(ratio_matrix)
+        mean_error_distance = calculate_mean_error_distance(ratio_matrix)
         msg = REFLECT_BATCH_USER_TEMPLATE.format(
+            scratchpad_preview=scratchpad_preview,
+            per_sample_ratios=per_sample_ratios_str,
+            cot_preview=cot_preview,
             batch_idx=batch_idx,
-            n_samples=len(sample_ids),
-            frac_in_target=stats["frac_in_target"],
-            ratio_matrix=_format_ratio_matrix(ratio_matrix, sample_ids),
-            realized_trajectory=_format_trajectory(realized_trajectory),
+            frac_in_target=frac_in_target,
+            mean_error_distance=mean_error_distance,
+            ratio_matrix=_format_ratio_table(sample_ids, ratio_matrix)
         )
         
         print("reflect message:", msg)
@@ -261,19 +301,12 @@ class TrajectoryOptimizer:
                 frac_in_target: float | None = None) -> str:
         """Rewrite experience.md with the latest universal-trajectory lessons."""
         realized_trajectory = realized_trajectory or []
-        stats = aggregate(ratios)
-        if frac_in_target is not None:
-            stats["frac_in_target"] = frac_in_target
+     
         success_count = sum(1 for s in successes if s)
         msg = DISTILL_USER_TEMPLATE.format(
             batch_idx=batch_idx,
             previous_experience=self.experience_md,
             realized_trajectory=_format_trajectory(realized_trajectory),
-            token_count_ratio_list=[round(r, 3) for r in ratios],
-            success_rate=f"{success_count}/{len(successes)}" if successes else "0/0",
-            frac_in_target=stats["frac_in_target"],
-            ratio_summary=stats,
-            overlap_list=[round(o, 3) for o in overlaps],
             best_perf=self.best_perf,
             current_perf=self.current_perf,
         )

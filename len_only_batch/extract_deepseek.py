@@ -26,7 +26,6 @@ SYSTEM_PROMPT = (
 _client = None
 _model_id = None
 
-
 def safe_json_loads(text):
     raw = (text or "").strip()
     if not raw:

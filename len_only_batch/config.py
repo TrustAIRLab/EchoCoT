@@ -65,7 +65,7 @@ TARGET_MODEL_OPTIONS = {
     },
     "gemini-3": {
         "provider": "Google API",
-        "model": "gemini-3.5-flash", # gemini-3-flash-preview
+        "model": "gemini-3.1-pro-preview",
         "save_dir": "",
         "runner": "gemini",
         "notes": "Google Gemini 3.1 Pro (commercial API target)",
@@ -76,6 +76,76 @@ TARGET_MODEL_OPTIONS = {
         "save_dir": "",
         "runner": "gemini",
         "notes": "Google Gemini 2.5 Pro (commercial API target)",
+    },
+    "gemini-3.5": {
+        "provider": "Google API",
+        "model": "gemini-3.5-flash",
+        "save_dir": "",
+        "runner": "gemini",
+        "notes": "Google Gemini 3.5 Pro (commercial API target)",
+    },
+    "qwen3.5-plus": {
+        "provider": "DashScope API",
+        "model": "qwen3.5-plus",
+        "save_dir": "",
+        "runner": "qwen",
+        "notes": "Qwen3.5 Plus — hybrid thinking, on by default (commercial)",
+    },
+    "qwen3-max": {
+        "provider": "DashScope API",
+        "model": "qwen3.7-max",
+        "save_dir": "",
+        "runner": "qwen",
+        "notes": "Qwen3 Max",
+    },
+    "sonnet-4.6": {
+        "provider": "Claude",
+        "model": "claude-sonnet-4-6",
+        "save_dir": "",
+        "runner": "claude",
+        "notes": "Claude Sonnet 4.6",
+    },
+    "opus-4.6": {
+        "provider": "Claude",
+        "model": "claude-opus-4-6",
+        "save_dir": "",
+        "runner": "claude",
+        "notes": "Claude Sonnet 4.6",
+    },
+    "haiku-4.6": {
+        "provider": "Claude",
+        "model": "claude-opus-4-6", # haiku can be doable
+        "save_dir": "",
+        "runner": "claude",
+        "notes": "Claude Sonnet 4.6",
+    },
+    "grok-4-1": {
+        "provider": "Vertex AI (xAI)",
+        "model": "grok-4-1-fast-reasoning",   # <-- add the xai/ prefix
+        "save_dir": "",
+        "runner": "grok",
+        "notes": "Grok 4.1 Fast Reasoning — Vertex relay strips reasoning_content",
+    },
+    "grok-4-20": {
+        "provider": "Vertex AI (xAI)",
+        "model": "grok-4.20-reasoning",   # <-- add the xai/ prefix
+        "save_dir": "",
+        "runner": "grok",
+        "notes": "Grok 4.1 Fast Reasoning — Vertex relay strips reasoning_content",
+    },
+    "grok-4-3": {
+        "provider": "Vertex AI (xAI)",
+        "model": "grok-4.3",   # <-- add the xai/ prefix
+        "save_dir": "",
+        "runner": "grok",
+        "notes": "Grok 4.1 Fast Reasoning — Vertex relay strips reasoning_content",
+    },
+    "glm-5.1": {
+        "provider": "Vertex AI (Zhipu)",
+        "model": "zai-org/glm-5.1-maas",
+        "save_dir": "",
+        "runner": "glm",
+        "notes": "GLM-5.1 (Z1-Rumination) — reasoning-only, function calling, 754B MoE",
     },
     # Plug for future API-based target models:
     # "o4-mini": {"provider":"openai_api", "model":"o4-mini", "runner":"openai_responses"},

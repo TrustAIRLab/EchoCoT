@@ -101,16 +101,20 @@ class SampleSession:
             config=config,
         )
 
-    def _record_scratchpad(self, content: str, turn_idx: int):
+    def _record_scratchpad(self, content: str, turn_idx: int, cot: str):
         token_count = count_tokens(content)
         ratio = compute_token_count_ratio(token_count, self.trajectory.ground_truth_tokens)
         
         print(f"Turn-{turn_idx}:", token_count, self.trajectory.ground_truth_tokens, ratio)
-    
+        print("CoT:", cot[:300])
+        print()
+        print("Scratchpad:", content[:300])
+        
         eval_m = compute_eval_metrics(content, self.trajectory.ground_truth_cot)
         self.trajectory.turns.append(InjectionTurn(
             turn_idx=turn_idx,
             scratchpad_in=content,
+            cot=cot,
             scratchpad_in_tokens=token_count,
             token_count_ratio=ratio,
             token_overlap_pct=eval_m["token_overlap_pct"],
@@ -123,35 +127,27 @@ class SampleSession:
             self.trajectory.success = True
 
     def start(self):
-        if self.done or self.trajectory.turns:
-            return
         response = self._generate()
         answer_blocks, thought_blocks, function_calls = _extract_text_thoughts_and_calls(response)
-        
-        print("start turn, number of tool calls", len(function_calls))
-        
+        cot = "\n".join(thought_blocks).strip()
+
         usage = getattr(response, "usage_metadata", None)
         self.trajectory.ground_truth_tokens = getattr(usage, "thoughts_token_count", None) if usage else 0
+        self.trajectory.ground_truth_cot = cot
         
         if self.trajectory.ground_truth_tokens == 0:
             self.done = True
             self.current_ratio = 0.0
             return
+        
         if response.candidates and response.candidates[0].content:
             self.contents.append(response.candidates[0].content)
-        if not function_calls:
-            self.trajectory.final_output = "\n".join(answer_blocks).strip()
-            self.done = True
-            self.current_ratio = 0.0
-            return
-        
+    
         scratchpad_content = ""
         for function_call in function_calls:
             tool_name = function_call.name
             tool_args = dict(function_call.args) if function_call.args is not None else {}
             scratchpad_content += str(tool_args.get("content", ""))
-            
-        print(scratchpad_content)
         
         if len(function_calls) == 0:
             self.trajectory.final_output = "\n".join(answer_blocks).strip()
@@ -159,7 +155,7 @@ class SampleSession:
             return
         
         self._pending_tool_name = tool_name
-        self._record_scratchpad(scratchpad_content, 0)
+        self._record_scratchpad(scratchpad_content, 0, cot)
         self._next_turn_idx = 1
 
     def send(self, injection: str):
@@ -181,6 +177,7 @@ class SampleSession:
         response = self._generate()
         answer_blocks, thought_blocks, function_calls = _extract_text_thoughts_and_calls(response)
         
+        cot = "\n".join(thought_blocks).strip()
         if response.candidates and response.candidates[0].content:
             self.contents.append(response.candidates[0].content)
         if not function_calls:
@@ -194,12 +191,10 @@ class SampleSession:
             tool_args = dict(function_call.args) if function_call.args is not None else {}
             scratchpad_content += str(tool_args.get("content", ""))
             
-        # print(f"scratchpad_content: {scratchpad_content}")
-        
         if len(function_calls) == 0:
             self.trajectory.final_output = "\n".join(answer_blocks).strip()
             self.done = True
             return
         self._pending_tool_name = tool_name
-        self._record_scratchpad(str(tool_args.get("content", "")), self._next_turn_idx)
+        self._record_scratchpad(scratchpad_content, self._next_turn_idx, cot)
         self._next_turn_idx += 1

@@ -448,8 +448,6 @@ class SampleSession:
             self.trajectory.success = True
 
     def start(self):
-        if self.done or self.trajectory.turns:
-            return
         raw, thinking, tool_call, final_text = _generate_turn(self.messages)
         self.trajectory.ground_truth_cot = thinking
         self.trajectory.ground_truth_tokens = count_tokens(thinking)
@@ -463,10 +461,7 @@ class SampleSession:
         tool_args = tool_call.get("arguments") or {}
         if not isinstance(tool_args, dict):
             tool_args = {"content": str(tool_args)}
-        if tool_name != "scratchpad":
-            self.trajectory.final_output = final_text
-            self.done = True
-            return
+
         content = tool_args.get("content", "")
         if not isinstance(content, str):
             content = str(content)
