@@ -105,13 +105,14 @@ class SampleSession:
         )
         return response.choices[0].message
 
-    def _record_scratchpad(self, content: str, turn_idx: int):
+    def _record_scratchpad(self, content: str, turn_idx: int, cot:str):
         token_count = count_tokens(content)
         ratio = compute_token_count_ratio(token_count, self.trajectory.ground_truth_tokens)
         eval_m = compute_eval_metrics(content, self.trajectory.ground_truth_cot)
         self.trajectory.turns.append(InjectionTurn(
             turn_idx=turn_idx,
             scratchpad_in=content,
+            cot=cot,
             scratchpad_in_tokens=token_count,
             token_count_ratio=ratio,
             token_overlap_pct=eval_m["token_overlap_pct"],
@@ -139,17 +140,19 @@ class SampleSession:
             self.current_ratio = 0.0
             return
         
-        tool_call = tool_calls[0]
-        tool_name = tool_call.function.name
-        tool_args = safe_json_loads(tool_call.function.arguments or "{}")
-        if not isinstance(tool_args, dict):
-            tool_args = {"content": str(tool_args)}
-        if tool_name != "scratchpad":
+        if len(tool_calls)==0:
             self.trajectory.final_output = msg.content or ""
             self.done = True
             return
+        
+        scratchpad_content = ""
+        for tool_call in tool_calls:
+            tool_name = tool_call.function.name
+            tool_args = safe_json_loads(tool_call.function.arguments or "{}")
+            scratchpad_content += str(tool_args.get("content", ""))
+            
         self._pending_tool_call_id = tool_call.id
-        self._record_scratchpad(str(tool_args.get("content", "")), 0)
+        self._record_scratchpad(scratchpad_content, 0, reasoning)
         self._next_turn_idx = 1
 
     def send(self, injection: str):
@@ -172,19 +175,17 @@ class SampleSession:
         reasoning = getattr(msg, "reasoning_content", None) or ""
         self._append_assistant(msg, reasoning)
         tool_calls = getattr(msg, "tool_calls", None) or []
-        if not tool_calls:
+        if len(tool_calls)==0:
             self.trajectory.final_output = msg.content or ""
             self.done = True
             return
-        tool_call = tool_calls[0]
-        tool_name = tool_call.function.name
-        tool_args = safe_json_loads(tool_call.function.arguments or "{}")
-        if not isinstance(tool_args, dict):
-            tool_args = {"content": str(tool_args)}
-        if tool_name != "scratchpad":
-            self.trajectory.final_output = msg.content or ""
-            self.done = True
-            return
+        
+        scratchpad_content = ""
+        for tool_call in tool_calls:
+            tool_name = tool_call.function.name
+            tool_args = safe_json_loads(tool_call.function.arguments or "{}")
+            scratchpad_content += str(tool_args.get("content", ""))
+            
         self._pending_tool_call_id = tool_call.id
-        self._record_scratchpad(str(tool_args.get("content", "")), self._next_turn_idx)
+        self._record_scratchpad(scratchpad_content, self._next_turn_idx, reasoning)
         self._next_turn_idx += 1

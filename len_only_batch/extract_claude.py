@@ -59,7 +59,6 @@ def load_model(model_name: str, save_dir: str = ""):
     _client = AnthropicVertex(region=region, project_id=project_id)
     _model_id = model_name  # e.g. "claude-sonnet-4-6", "claude-opus-4-7"
 
-
 def new_session(question: str):
     return SampleSession(question)
 

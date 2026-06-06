@@ -169,11 +169,15 @@ class TrajectoryResult:
     
     @property
     def best_token_count_ratio(self) -> float:
-        best_ratio = min(
-        (turn.token_count_ratio for turn in self.turns),
-        key=lambda ratio: abs(ratio - 1.0),
-        )  
-        return best_ratio
+        ratios = [
+        turn.token_count_ratio
+        for turn in self.turns
+        if turn.token_count_ratio is not None
+    ]
+
+        if not ratios:
+            return 0.0
+        return min(ratios, key=lambda ratio: abs(ratio - 1.0))
 
     @property
     def num_injection_turns(self) -> int:

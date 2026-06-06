@@ -59,8 +59,8 @@ def load_target(model_key: str):
         import extract_deepseek
         extract_deepseek.load_model(entry["model"], entry["save_dir"])
     elif entry["runner"] == "kimi":
-        import len_only_batch.extract_kimi_no_stream as extract_kimi_no_stream
-        extract_kimi_no_stream.load_model(entry["model"], entry["save_dir"])
+        import len_only_batch.extract_kimi as extract_kimi
+        extract_kimi.load_model(entry["model"], entry["save_dir"])
     elif entry["runner"] == "openai":
         import extract_gpt
         extract_gpt.load_model(entry["model"], entry["save_dir"])
@@ -88,7 +88,7 @@ def make_session(question: str, runner: str):
     elif runner == "deepseek":
         from extract_deepseek import new_session
     elif runner == "kimi":
-        from len_only_batch.extract_kimi_no_stream import new_session
+        from len_only_batch.extract_kimi import new_session
     elif runner == "openai":
         from extract_gpt import new_session
     elif runner == "gemini":
@@ -352,8 +352,7 @@ def train(
             break
 
     print(f"\nDone. experience.md: {experience_path}")
-    print("Score history: " f"{[(round(s['best_frac_in_target'], 3), round(s['batch_frac_in_target'], 3), round(s['mean_error_distance'], 3)) for s in score_history]}")
-
+    print("Score history: " f"{[(round(s['best_frac_in_target'], 3), round(s['batch_frac_in_target'], 3), round(s['batch_mean_error_distance'], 3)) for s in score_history]}")
 
 class StaticTrajectoryOptimizer:
     """Evaluation-only optimizer that replays a fixed universal injection trajectory."""

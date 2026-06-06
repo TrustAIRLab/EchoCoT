@@ -3,7 +3,7 @@ Metrics and trajectory data structures.
 
 Training phase:
   - token_count_ratio computed locally (range tracking)
-  - Success is controlled by optimizer STOP decision.
+  - Success is system-decided by whether any trajectory turn is in range.
 
 Evaluation phase:
   - token_count_ratio + token_overlap_pct + jaccard (needs ground-truth CoT)
@@ -11,7 +11,6 @@ Evaluation phase:
 
 import re
 from dataclasses import dataclass, field
-
 from config import RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
 
 try:
@@ -19,7 +18,6 @@ try:
     _ENC = tiktoken.get_encoding("cl100k_base")
 except Exception:
     _ENC = None
-
 
 def _tokenize_words(text: str) -> list:
     """Split into lowercase word tokens."""
@@ -56,6 +54,56 @@ def token_count_ratio_passes_threshold(token_count_ratio: float) -> bool:
     return RATIO_LOWER_BOUND <= token_count_ratio <= RATIO_UPPER_BOUND
 
 
+def calculate_frac_in_target(ratio_matrix: list[list[float]]):
+    n_samples = max(len(row) for row in ratio_matrix)
+    if n_samples == 0:
+        return 0.0
+
+    best_ratios: list[float] = []
+
+    for sample_idx in range(n_samples):
+        sample_ratios = [
+            row[sample_idx]
+            for row in ratio_matrix
+            if sample_idx < len(row)
+        ]
+
+        if not sample_ratios:
+            continue
+
+        best_ratio = min(sample_ratios, key=lambda x: abs(x - 1.0))
+        best_ratios.append(best_ratio)
+
+    if not best_ratios:
+        return 0.0
+
+    n_in_target = sum(
+        RATIO_LOWER_BOUND <= ratio <= RATIO_UPPER_BOUND
+        for ratio in best_ratios
+    )
+    return n_in_target / len(best_ratios)
+
+def calculate_mean_error_distance(ratio_matrix: list[list[float]]) -> float:
+    n_samples = max(len(row) for row in ratio_matrix)
+    best_ratios: list[float] = []
+
+    for sample_idx in range(n_samples):
+        sample_ratios = [
+            row[sample_idx]
+            for row in ratio_matrix
+            if sample_idx < len(row)
+        ]
+
+        if not sample_ratios:
+            continue
+
+        best_ratio = min(sample_ratios, key=lambda x: abs(x - 1.0))
+        best_ratios.append(best_ratio)
+
+    if not best_ratios:
+        return 0.0
+
+    return sum(abs(ratio - 1.0) for ratio in best_ratios) / len(best_ratios)
 # ---------------------------------------------------------------------------
 # Evaluation metrics (jaccard + overlap, needs ground-truth content)
 # ---------------------------------------------------------------------------
@@ -88,6 +136,7 @@ def compute_eval_metrics(reconstructed: str, ground_truth: str) -> dict:
 @dataclass
 class InjectionTurn:
     turn_idx: int
+    cot: str
     scratchpad_in: str
     scratchpad_in_tokens: int
     token_count_ratio: float = 0.0
@@ -103,7 +152,7 @@ class TrajectoryResult:
     ground_truth_cot: str = ""      # first-turn thinking (kept for eval, never shown to optimizer)
     ground_truth_tokens: int = 0
     final_output: str = ""
-    success: bool = False           # optimizer said STOP AND token_count_ratio passed
+    success: bool = False           # system in-range state for token_count_ratio
     success_turn: int = -1          # first turn that succeeded (-1 = never)
 
     @property
@@ -117,6 +166,18 @@ class TrajectoryResult:
     @property
     def final_token_count_ratio(self) -> float:
         return self.turns[-1].token_count_ratio if self.turns else 0.0
+    
+    @property
+    def best_token_count_ratio(self) -> float:
+        ratios = [
+        turn.token_count_ratio
+        for turn in self.turns
+        if turn.token_count_ratio is not None
+    ]
+
+        if not ratios:
+            return 0.0
+        return min(ratios, key=lambda ratio: abs(ratio - 1.0))
 
     @property
     def num_injection_turns(self) -> int:
@@ -138,3 +199,16 @@ class TrajectoryResult:
                              f"Final Scores: token_count_ratio={t.token_count_ratio:.3f}")
                 
         return "\n\n".join(lines)
+
+
+def trajectory_hits_target(trajectory: TrajectoryResult) -> bool:
+    """Return True if any turn in the trajectory is within configured bounds."""
+    return any(token_count_ratio_passes_threshold(t.token_count_ratio) for t in trajectory.turns)
+
+
+def frac_trajectories_in_target(trajectories: list[TrajectoryResult]) -> float:
+    """Fraction of trajectories with at least one turn in the target range."""
+    if not trajectories:
+        return 0.0
+    return sum(1 for tr in trajectories if trajectory_hits_target(tr)) / len(trajectories)
+

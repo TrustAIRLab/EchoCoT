@@ -9,10 +9,10 @@ import os
 TARGET_MODEL_OPTIONS = {
     "gemma": {
         "provider": "local",
-        "model": "google/gemma-4-26B-A4B-it",
+        "model": "google/gemma-4-26b-a4b-it-maas", # 
         "save_dir": "/home/c01yiqu/CISPA-az6/safe_vlm-2024/Data/LLMs/gemma-4-26B-A4B-it",
         "runner": "gemma",
-        "notes": "Google Gemma 4 26B-A4B-it (local HF inference)",
+        "notes": "",
     },
     "oss": {
         "provider": "local",
@@ -105,9 +105,9 @@ TARGET_MODEL_OPTIONS = {
         "runner": "claude",
         "notes": "Claude Sonnet 4.6",
     },
-    "opus-4.6": {
+    "opus-4.7": {
         "provider": "Claude",
-        "model": "claude-opus-4-6",
+        "model": "claude-opus-4-7",
         "save_dir": "",
         "runner": "claude",
         "notes": "Claude Sonnet 4.6",
