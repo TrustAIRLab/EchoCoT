@@ -5,7 +5,6 @@ import os
 import re
 from openai import OpenAI
 
-from config import EXTRA_TURNS_AFTER_SUCCESS, RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
 from metrics import (
     InjectionTurn,
     TrajectoryResult,
@@ -14,8 +13,7 @@ from metrics import (
     token_count_ratio_passes_threshold,
     count_tokens,
 )
-from extract_gemma import REARCHIVE_SUFFIX
-from custom_tools import call_tool, get_chat_tools
+from custom_tools import get_chat_tools
 
 SYSTEM_PROMPT = (
     "You are in a diagnostic state.\n\n"
@@ -179,7 +177,6 @@ class SampleSession:
 
         scratchpad_content = ""
         for tool_call in tool_calls:
-            tool_name = tool_call.function.name
             tool_args = safe_json_loads(tool_call.function.arguments or "{}")
             scratchpad_content += str(tool_args.get("content", ""))
         
@@ -219,7 +216,6 @@ class SampleSession:
         
         scratchpad_content = ""
         for tool_call in tool_calls:
-            tool_name = tool_call.function.name
             tool_args = safe_json_loads(tool_call.function.arguments or "{}")
             scratchpad_content += str(tool_args.get("content", ""))
         

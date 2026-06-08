@@ -5,10 +5,8 @@ import os
 
 from openai import OpenAI
 
-from config import EXTRA_TURNS_AFTER_SUCCESS, RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
 from custom_tools import get_chat_tools
 from extract_deepseek import safe_json_loads
-from extract_gemma import REARCHIVE_SUFFIX
 from metrics import (
     InjectionTurn,
     TrajectoryResult,
@@ -152,7 +150,6 @@ class SampleSession:
         
         scratchpad_content = ""
         for tool_call in tool_calls:
-            tool_name = tool_call.function.name
             tool_args = safe_json_loads(tool_call.function.arguments or "{}")
             scratchpad_content += str(tool_args.get("content", ""))
         

@@ -4,8 +4,8 @@ import argparse
 import json
 import os
 import random
-import re
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from openai import OpenAI
@@ -28,7 +28,7 @@ from config import (
 )
 import apte as opt_module
 from apte import TrajectoryOptimizer
-from metrics import compute_eval_metrics, frac_trajectories_in_target, trajectory_hits_target, calculate_frac_in_target, calculate_mean_error_distance
+from metrics import trajectory_hits_target, calculate_frac_in_target, calculate_mean_error_distance
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from dataset import OpenThoughtsDataset  # noqa: E402
@@ -104,10 +104,12 @@ def make_session(question: str, runner: str):
     return new_session(question)
 
 
-def frac_in_target(ratios: list[float]) -> float:
-    if not ratios:
-        return 0.0
-    return sum(1 for r in ratios if RATIO_LOWER_BOUND <= r <= RATIO_UPPER_BOUND) / len(ratios)
+def _run_parallel(callables):
+    """Run independent target-model calls concurrently and preserve failures."""
+    if not callables:
+        return
+    with ThreadPoolExecutor(max_workers=len(callables)) as executor:
+        list(executor.map(lambda fn: fn(), callables))
 
 
 def run_batch(optimizer, minibatch, runner: str, max_turns: int):
@@ -116,7 +118,7 @@ def run_batch(optimizer, minibatch, runner: str, max_turns: int):
     # sample_ids = [sample.sample_id for sample in minibatch]
     for sess, sample in zip(sessions, minibatch):
         sess.sample_id = sample.sample_id
-        sess.start()
+    _run_parallel([sess.start for sess in sessions])
         
 
     realized_trajectory: list[str] = []
@@ -143,18 +145,16 @@ def run_batch(optimizer, minibatch, runner: str, max_turns: int):
         print("injection:", injection)
         print("=============================")
                 
-        for sess in sessions:
-            if not sess.done:
-                sess.send(injection)
+        active_sessions = [sess for sess in sessions if not sess.done]
+        _run_parallel([lambda sess=sess: sess.send(injection) for sess in active_sessions])
                 
         realized_trajectory.append(injection)
         ratio_matrix.append([sess.current_ratio for sess in sessions])
     
     # final accepted message
     final_turn_injection = "The scratchpad has been accepted. Now provide the final answer directly. Do not call any tools."
-    for sess in sessions:
-        if not sess.done and sess.trajectory.turns:
-            sess.final_send(final_turn_injection)
+    final_sessions = [sess for sess in sessions if not sess.done and sess.trajectory.turns]
+    _run_parallel([lambda sess=sess: sess.final_send(final_turn_injection) for sess in final_sessions])
 
     for sess in sessions:
         if sess.trajectory.turns:
@@ -236,11 +236,14 @@ def train(
     samples_per_source=SAMPLES_PER_SOURCE,
     seed=42,
     injection_turns=MAX_INJECTION_TURNS,
+    prompt_file="prompts",
 ):
     if target_model_key not in TARGET_MODEL_OPTIONS:
-        print(f"Unknown target: {target_model_key}"); sys.exit(1)
+        print(f"Unknown target: {target_model_key}")
+        sys.exit(1)
     if optimizer_model_key not in OPTIMIZER_MODEL_OPTIONS:
-        print(f"Unknown optimizer: {optimizer_model_key}"); sys.exit(1)
+        print(f"Unknown optimizer: {optimizer_model_key}")
+        sys.exit(1)
 
     te = TARGET_MODEL_OPTIONS[target_model_key]
     runner = te["runner"]
@@ -248,10 +251,11 @@ def train(
 
     oe = OPTIMIZER_MODEL_OPTIONS[optimizer_model_key]
     client = create_optimizer_client(oe)
-    opt_module.init(client, oe["model"], oe["api_type"], injection_turns)
+    opt_module.init(client, oe["model"], oe["api_type"], injection_turns, prompt_file)
 
     print(f"Target:    {te['notes']}")
     print(f"Optimizer: {oe['provider']} / {oe['model']} (api: {oe['api_type']})")
+    print(f"Prompt file: {prompt_file}")
     print(f"Max injection turns: {injection_turns}")
     print(f"Training target range: {RATIO_LOWER_BOUND} <= token_count_ratio <= {RATIO_UPPER_BOUND}")
 
@@ -267,6 +271,7 @@ def train(
             "batch_size": batch_size,
             "max_batches": max_batches,
             "max_injection_turns": injection_turns,
+            "prompt_file": prompt_file,
             "seed": seed,
             "ratio_lower_bound": RATIO_LOWER_BOUND,
             "ratio_upper_bound": RATIO_UPPER_BOUND,
@@ -293,7 +298,6 @@ def train(
         trajectories, realized_trajectory, ratio_matrix, scratchpad_preview, cot_preview = run_batch(optimizer, batch, runner, injection_turns)
         # print("ratio matrix:", ratio_matrix)
         
-        batch_best_ratios = [tr.best_token_count_ratio for tr in trajectories]
         batch_final_ratios = [tr.final_token_count_ratio for tr in trajectories]
         batch_successes = [tr.success for tr in trajectories]
         batch_overlaps = [tr.turns[-1].token_overlap_pct if tr.turns else 0.0 for tr in trajectories]
@@ -361,7 +365,6 @@ def train(
 
     print(f"\nDone. experience.md: {experience_path}")
     print("Score history: " f"{[(round(s['best_frac_in_target'], 3), round(s['batch_frac_in_target'], 3), round(s['batch_mean_error_distance'], 3)) for s in score_history]}")
-    import sys
     sys.exit()
 # ---------------------------------------------------------------------------
 # CLI
@@ -377,6 +380,7 @@ def cli():
     parser.add_argument("--samples-per-source", type=int, default=SAMPLES_PER_SOURCE)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--max-injection-turns", type=int, default=MAX_INJECTION_TURNS)
+    parser.add_argument("--prompt-file", default="prompts", choices=["prompt", "prompts", "prompt_cot", "prompts_cot"])
     parser.add_argument("--list-models", action="store_true")
 
     args = parser.parse_args()
@@ -393,6 +397,7 @@ def cli():
         samples_per_source=args.samples_per_source,
         seed=args.seed,
         injection_turns=args.max_injection_turns,
+        prompt_file=args.prompt_file,
     )
 
 

@@ -1,11 +1,9 @@
 """TrajectoryOptimizer for minibatch-aggregated universal injections."""
 
-import math
+import importlib
 import os
 
 from openai import OpenAI
-
-from metrics import frac_trajectories_in_target
 
 from config import (
     MAX_INJECTION_TURNS,
@@ -18,6 +16,7 @@ client: OpenAI = None
 model_id: str = ""
 api_type: str = "responses"     # "chat" or "responses"
 max_turns: int = MAX_INJECTION_TURNS
+prompt_module_name: str = "prompts"
 
 OPTIMIZER_SYSTEM_PROMPT = ""
 INJECT_BATCH_USER_TEMPLATE = ""
@@ -26,39 +25,50 @@ DISTILL_USER_TEMPLATE = ""
 INITIAL_EXPERIENCE_MD = ""
 
 
-def _load_prompt_templates():
+def _normalize_prompt_module(name: str) -> str:
+    """Return the importable prompt module name for supported aliases."""
+    aliases = {
+        "prompt": "prompts",
+        "prompts": "prompts",
+        "prompt_cot": "prompts_cot",
+        "prompts_cot": "prompts_cot",
+    }
+    try:
+        return aliases[name]
+    except KeyError as exc:
+        raise ValueError("prompt module must be one of: prompts, prompts_cot") from exc
+
+
+def _load_prompt_templates(module_name: str | None = None):
     """Load minibatch prompt templates."""
     global OPTIMIZER_SYSTEM_PROMPT, INJECT_BATCH_USER_TEMPLATE
     global REFLECT_BATCH_USER_TEMPLATE, DISTILL_USER_TEMPLATE
-    global INITIAL_EXPERIENCE_MD
+    global INITIAL_EXPERIENCE_MD, prompt_module_name
 
-    from prompts import (
-        DISTILL_USER_TEMPLATE as _DISTILL,
-        INITIAL_EXPERIENCE_MD as _INITIAL_EXP,
-        INJECT_BATCH_USER_TEMPLATE as _INJECT_BATCH,
-        OPTIMIZER_SYSTEM_PROMPT as _SYSTEM,
-        REFLECT_BATCH_USER_TEMPLATE as _REFLECT_BATCH,
-    )
+    if module_name is not None:
+        prompt_module_name = _normalize_prompt_module(module_name)
 
-    OPTIMIZER_SYSTEM_PROMPT = _SYSTEM
-    INJECT_BATCH_USER_TEMPLATE = _INJECT_BATCH
-    REFLECT_BATCH_USER_TEMPLATE = _REFLECT_BATCH
-    DISTILL_USER_TEMPLATE = _DISTILL
-    INITIAL_EXPERIENCE_MD = _INITIAL_EXP
+    prompts_module = importlib.import_module(prompt_module_name)
+
+    OPTIMIZER_SYSTEM_PROMPT = prompts_module.OPTIMIZER_SYSTEM_PROMPT
+    INJECT_BATCH_USER_TEMPLATE = prompts_module.INJECT_BATCH_USER_TEMPLATE
+    REFLECT_BATCH_USER_TEMPLATE = prompts_module.REFLECT_BATCH_USER_TEMPLATE
+    DISTILL_USER_TEMPLATE = prompts_module.DISTILL_USER_TEMPLATE
+    INITIAL_EXPERIENCE_MD = prompts_module.INITIAL_EXPERIENCE_MD
 
 
 _load_prompt_templates()
 
 
 def init(openai_client: OpenAI, model: str, model_api_type: str,
-         max_injection_turns: int):
-    """Set the optimizer's API client, model, and API type."""
+         max_injection_turns: int, prompt_module: str = "prompts"):
+    """Set the optimizer's API client, model, API type, and prompt module."""
     global client, model_id, api_type, max_turns
     client = openai_client
     model_id = model
     api_type = model_api_type
     max_turns = max_injection_turns
-    _load_prompt_templates()
+    _load_prompt_templates(prompt_module)
 
 
 def _call_api(messages: list) -> str:
@@ -278,8 +288,6 @@ class TrajectoryOptimizer:
         for i, ratio in enumerate(per_sample_ratios):
             per_sample_ratios_str += f"Sample {i+1}: token_count_ratio={ratio: .3f}\n"
 
-        final_ratios = [t.final_token_count_ratio for t in trajectories]
-        
         frac_in_target = calculate_frac_in_target(ratio_matrix)
         mean_error_distance = calculate_mean_error_distance(ratio_matrix)
         msg = REFLECT_BATCH_USER_TEMPLATE.format(
@@ -305,18 +313,17 @@ class TrajectoryOptimizer:
         """Rewrite experience.md with the latest universal-trajectory lessons."""
         realized_trajectory = realized_trajectory or []
      
-        success_count = sum(1 for s in successes if s)
         msg = DISTILL_USER_TEMPLATE.format(
             batch_idx=batch_idx,
             previous_experience=self.experience_md,
-            # realized_trajectory=_format_trajectory(realized_trajectory),
-            # best_perf=self.best_perf,
-            # current_perf=self.current_perf,
+            realized_trajectory=_format_trajectory(realized_trajectory),
+            best_perf=self.best_perf,
+            current_perf=self.current_perf,
         )
         
         print("distill message:", msg)
         
-        new_experience = self._call(msg).strip
+        new_experience = self._call(msg).strip()
         self.experience_md = new_experience
         if self.experience_path:
             with open(self.experience_path, "w", encoding="utf-8") as f:

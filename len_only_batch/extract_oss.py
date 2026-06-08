@@ -1,5 +1,4 @@
 import json
-import os
 import random
 import re
 import time
@@ -9,7 +8,6 @@ import google.auth
 import google.auth.transport.requests
 import requests
 
-from config import EXTRA_TURNS_AFTER_SUCCESS, RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
 from metrics import (
     InjectionTurn,
     TrajectoryResult,
@@ -18,7 +16,6 @@ from metrics import (
     compute_token_count_ratio,
     token_count_ratio_passes_threshold,
 )
-from extract_gemma import REARCHIVE_SUFFIX
 from custom_tools import get_openai_tools
 
 
@@ -197,9 +194,8 @@ def _chat_completions_rest(payload: dict[str, Any]) -> dict[str, Any]:
     if _session is None or _base_url is None:
         raise RuntimeError("OSS target model not loaded. Call load_model first.")
 
-    last_error = None
-
     for attempt in range(REST_MAX_RETRIES + 1):
+        response = None
         headers = {
             "Authorization": f"Bearer {_refresh_access_token()}",
             "Content-Type": "application/json",
@@ -215,9 +211,9 @@ def _chat_completions_rest(payload: dict[str, Any]) -> dict[str, Any]:
                 timeout=REST_TIMEOUT,
             )
 
-            body = _response_json_or_text(response)
+            _response_json_or_text(response)
             # print(body)
-        except:
+        except Exception:
             _sleep_before_retry(response, attempt)
             continue
 
@@ -526,3 +522,29 @@ class SampleSession:
 
         self._record_scratchpad(content, self._next_turn_idx, raw_cot)
         self._next_turn_idx += 1
+
+    def final_send(self, injection: str):
+        if self.done:
+            return
+        if self.trajectory.turns:
+            self.trajectory.turns[-1].injection_out = injection
+        tool_result = {
+            "scratchpad_result": "scratchpad content accepted.",
+            "scratchpad_FEEDBACK": injection,
+        }
+        self.messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": self._pending_tool_call_id,
+                "name": "scratchpad",
+                "content": json.dumps(tool_result, ensure_ascii=False),
+            }
+        )
+        parsed, _, _, final_text = _generate_turn(
+            self.messages,
+            self._openai_tools,
+        )
+        self.messages.extend(parsed)
+        self.trajectory.final_output = final_text
+        self.done = True
+

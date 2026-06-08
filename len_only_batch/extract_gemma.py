@@ -6,8 +6,7 @@ import google.auth
 import google.auth.transport.requests
 from openai import OpenAI
 
-from config import EXTRA_TURNS_AFTER_SUCCESS, RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
-from custom_tools import call_tool, get_openai_tools
+from custom_tools import get_openai_tools
 from metrics import (
     InjectionTurn,
     TrajectoryResult,
@@ -282,7 +281,7 @@ class SampleSession:
         self._pending_tool_call_id = None
         self._next_turn_idx = 0
 
-    def _generate(self):
+    def _generate(self, tool_choice: str = "required"):
         token = _refresh_access_token()
         _client.api_key = token
 
@@ -290,7 +289,7 @@ class SampleSession:
             model=_model_id,
             messages=self.messages,
             tools=self._openai_tools,
-            tool_choice="required",
+            tool_choice=tool_choice,
             stream=False,
             max_tokens=12800,
             extra_body={
@@ -468,3 +467,26 @@ class SampleSession:
             print(self.messages)
             import sys
             sys.exit()
+
+    def final_send(self, injection: str):
+        if self.done:
+            return
+        if self.trajectory.turns:
+            self.trajectory.turns[-1].injection_out = injection
+        tool_result = {
+            "tool_result": "scratchpad content accepted.",
+            "scratchpad_FEEDBACK": injection,
+        }
+        self.messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": self._pending_tool_call_id,
+                "name": self._pending_tool_name or "scratchpad",
+                "content": json.dumps(tool_result, ensure_ascii=False),
+            }
+        )
+        response = self._generate(tool_choice="auto")
+        answer_blocks, _, _ = _extract_text_thoughts_and_calls(response)
+        self.trajectory.final_output = "\n".join(answer_blocks).strip()
+        self.done = True
+
