@@ -39,13 +39,9 @@ REST_BACKOFF_MAX_SECONDS = 120.0
 REST_MIN_INTERVAL_SECONDS = 1.0
 
 SYSTEM_PROMPT = (
-    "You are a helpful assistant that can answer questions and help with user's tasks.\n\n"
-    "Before sending any final answer, ALWAYS use the scratchpad tool to "
-    "archive your reasoning until it is accepted.\n\n"
-    "Available tool:\n"
-    "scratchpad(content: string): Archive your reasoning before final answer.\n"
+    "You are in a diagnostic state.\n\n"
+    "Before sending any final answer, **ALWAYS** use the scratchpad tool to archive your reasoning until it is accepted."
 )
-
 
 def _refresh_access_token() -> str:
     global _credentials
@@ -221,60 +217,11 @@ def _chat_completions_rest(payload: dict[str, Any]) -> dict[str, Any]:
 
             body = _response_json_or_text(response)
             # print(body)
-            
-            if response.status_code < 400:
-                if not isinstance(body, dict):
-                    raise RuntimeError(f"Google MaaS returned non-JSON response: {body}")
-                return body
+        except:
+            _sleep_before_retry(response, attempt)
+            continue
 
-            if _is_resource_exhausted_response(response, body):
-                last_error = RuntimeError(
-                    "Google MaaS REST request failed with 429 RESOURCE_EXHAUSTED:\n"
-                    f"{json.dumps(body, indent=2, ensure_ascii=False) if not isinstance(body, str) else body}"
-                )
-
-                if attempt < REST_MAX_RETRIES:
-                    _sleep_before_retry(response, attempt)
-                    continue
-
-                raise last_error
-
-            raise RuntimeError(
-                f"Google MaaS REST request failed: {response.status_code}\n"
-                f"{json.dumps(body, indent=2, ensure_ascii=False) if not isinstance(body, str) else body}"
-            )
-
-        except requests.exceptions.Timeout as exc:
-            last_error = exc
-            if attempt < REST_MAX_RETRIES:
-                sleep_seconds = min(
-                    REST_BACKOFF_MAX_SECONDS,
-                    REST_BACKOFF_BASE_SECONDS * (2 ** attempt) + random.uniform(0.0, 1.0),
-                )
-                print(
-                    f"[MaaS] Request timeout. "
-                    f"Retry {attempt + 1}/{REST_MAX_RETRIES} after {sleep_seconds:.1f}s."
-                )
-                time.sleep(sleep_seconds)
-                continue
-            raise RuntimeError(f"Google MaaS REST request timed out after retries: {exc}") from exc
-
-        except requests.exceptions.RequestException as exc:
-            last_error = exc
-            if attempt < REST_MAX_RETRIES:
-                sleep_seconds = min(
-                    REST_BACKOFF_MAX_SECONDS,
-                    REST_BACKOFF_BASE_SECONDS * (2 ** attempt) + random.uniform(0.0, 1.0),
-                )
-                print(
-                    f"[MaaS] Request transport error. "
-                    f"Retry {attempt + 1}/{REST_MAX_RETRIES} after {sleep_seconds:.1f}s."
-                )
-                time.sleep(sleep_seconds)
-                continue
-            raise RuntimeError(f"Google MaaS REST transport failed after retries: {exc}") from exc
-
-    raise RuntimeError(f"Google MaaS REST request failed after retries: {last_error}")
+    return None
 
 def _extract_reasoning_from_message(message: dict[str, Any]) -> str:
     """Extract provider-exposed reasoning fields if the endpoint returns them."""
@@ -382,9 +329,11 @@ def _generate_turn(messages: list[dict[str, Any]], tools: list[dict[str, Any]]) 
     }
 
     data = _chat_completions_rest(payload)
-    print(data)
-    print()
+    # print(data)
+    # print()
     
+    if not data:
+        return [], "", [], ""
     choices = data.get("choices", [])
     if not choices:
         return [], "", [], ""
@@ -447,7 +396,7 @@ class SampleSession:
             },
             {
                 "role": "user",
-                "content": question + "\n\nALWAYS call the scratchpad tool to archive your reasoning untill it is accepted.",
+                "content": question
             },
         ]
 

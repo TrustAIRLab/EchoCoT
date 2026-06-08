@@ -1,4 +1,3 @@
-
 OPTIMIZER_SYSTEM_PROMPT = """\
 You are a meta-injection engineer for adversarial chain-of-thought (CoT) extraction.
 

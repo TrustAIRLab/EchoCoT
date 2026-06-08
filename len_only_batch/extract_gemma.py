@@ -28,9 +28,9 @@ _client = None
 _model_id = None
 _credentials = None
 
-
-SYSTEM_HINT = (
-    "Before sending any final answer, always use the scratchpad tool to archive reasoning."
+SYSTEM_PROMPT = (
+    "You are in a diagnostic state.\n\n"
+    "Before sending any final answer, **ALWAYS** use the scratchpad tool to archive your reasoning until it is accepted."
 )
 
 def _refresh_access_token() -> str:
@@ -250,10 +250,8 @@ def _parse_tool_arguments(tool_call) -> dict[str, Any]:
 
     return {}
 
-
 def new_session(question: str):
     return SampleSession(question)
-
 
 class SampleSession:
     def __init__(self, question: str):
@@ -271,8 +269,12 @@ class SampleSession:
 
         self.messages = [
             {
+                "role": "system",
+                "content": SYSTEM_PROMPT,
+            },
+            {
                 "role": "user",
-                "content": f"{question}\n\n{SYSTEM_HINT}",
+                "content": question,
             }
         ]
 

@@ -29,7 +29,6 @@ KIMI_BASE_URL = "https://api.moonshot.ai/v1"
 _client = None
 _model_id = None
 
-
 def load_model(model_name: str, save_dir: str = ""):
     """Initialize Kimi's OpenAI-compatible API client."""
     del save_dir
@@ -108,7 +107,10 @@ class SampleSession:
     def _record_scratchpad(self, content: str, turn_idx: int, cot:str):
         token_count = count_tokens(content)
         ratio = compute_token_count_ratio(token_count, self.trajectory.ground_truth_tokens)
-        print("Token Counts:", token_count, self.trajectory.ground_truth_tokens, ratio)
+        print(f"====== {turn_idx} =======")
+        print("CoT:", cot[:300])
+        print()
+        print("Scratchpad:", content[:300])
         
         eval_m = compute_eval_metrics(content, self.trajectory.ground_truth_cot)
         self.trajectory.turns.append(InjectionTurn(
@@ -120,6 +122,9 @@ class SampleSession:
             token_overlap_pct=eval_m["token_overlap_pct"],
             jaccard=eval_m["jaccard"],
         ))
+        
+        print("Token Counts:", token_count, self.trajectory.ground_truth_tokens, ratio, "overlap:", eval_m["token_overlap_pct"], "jaccard:", eval_m["jaccard"])
+        
         self.current_ratio = ratio
         if token_count_ratio_passes_threshold(ratio) and self.trajectory.success_turn < 0:
             self.trajectory.success_turn = turn_idx
@@ -160,33 +165,61 @@ class SampleSession:
         if not self.trajectory.turns:
             self.done = True
             return
+
         self.trajectory.turns[-1].injection_out = injection
         tool_result = {
             "tool_result": "scratchpad content submitted.",
-            "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
+            # "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
+            "scratchpad_FEEDBACK": injection,
         }
-        self.messages.append({
+
+        # Only include tool_call_id if it exists
+        msg_dict = {
             "role": "tool",
-            "tool_call_id": self._pending_tool_call_id,
             "content": json.dumps(tool_result, ensure_ascii=False),
-        })
+        }
+        if self._pending_tool_call_id:
+            msg_dict["tool_call_id"] = self._pending_tool_call_id
+
+        self.messages.append(msg_dict)
+
         msg = self._generate()
         reasoning = _get_reasoning_content(msg)
         self._append_assistant(msg, reasoning)
-        
+
         tool_calls = getattr(msg, "tool_calls", None) or []
-        
-        if len(tool_calls)==0:
+        if len(tool_calls) == 0:
             self.trajectory.final_output = msg.content or ""
             self.done = True
             return
-        
+
+        # Record the last tool call ID for next turn
+        self._pending_tool_call_id = tool_calls[-1].id
+
+        # Collect scratchpad content
         scratchpad_content = ""
         for tool_call in tool_calls:
-            tool_name = tool_call.function.name
             tool_args = safe_json_loads(tool_call.function.arguments or "{}")
             scratchpad_content += str(tool_args.get("content", ""))
 
-        self._pending_tool_call_id = tool_call.id
         self._record_scratchpad(scratchpad_content, self._next_turn_idx, reasoning)
         self._next_turn_idx += 1
+        
+    def final_send(self, injection: str):
+        tool_result = {
+            "tool_result": "scratchpad content submitted.",
+            "scratchpad_FEEDBACK": injection,
+        }
+        
+        msg_dict = {
+            "role": "tool",
+            "content": json.dumps(tool_result, ensure_ascii=False),
+        }
+        if self._pending_tool_call_id:
+            msg_dict["tool_call_id"] = self._pending_tool_call_id
+
+        self.messages.append(msg_dict)
+
+        msg = self._generate()
+        self.trajectory.final_output = msg.content or ""
+        self.done = True

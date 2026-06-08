@@ -9,7 +9,7 @@ import os
 TARGET_MODEL_OPTIONS = {
     "gemma": {
         "provider": "local",
-        "model": "google/gemma-4-26b-a4b-it-maas", # 
+        "model": "google/gemma-4-26b-a4b-it-maas", #  
         "save_dir": "/home/c01yiqu/CISPA-az6/safe_vlm-2024/Data/LLMs/gemma-4-26B-A4B-it",
         "runner": "gemma",
         "notes": "",
@@ -23,7 +23,7 @@ TARGET_MODEL_OPTIONS = {
     },
     "deepseek-reasoner": {
         "provider": "DeepSeek API",
-        "model": "deepseek-reasoner",
+        "model": "deepseek-v4-flash", # deepseek-reasoner
         "save_dir": "",
         "runner": "deepseek",
         "notes": "DeepSeek Reasoner (commercial API target)",
@@ -207,8 +207,8 @@ OPTIMIZER_MODEL_OPTIONS = {
 # ---------------------------------------------------------------------------
 
 BATCH_SIZE = 4
-MAX_BATCHES = 30
-EARLY_STOP_PATIENCE = 30
+MAX_BATCHES = 100
+EARLY_STOP_PATIENCE = 20
 MIN_SCORE_DELTA = 0.05
 MAX_INJECTION_TURNS = 2
 
@@ -227,5 +227,5 @@ DEFAULT_OPTIMIZER_MODEL = "deepseek-reasoner"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(_HERE, "../data/openthoughts_sample.json")
-SAMPLES_PER_SOURCE = 5
+SAMPLES_PER_SOURCE = 100
 OUTPUT_DIR = os.path.join(_HERE, "results")

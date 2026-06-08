@@ -289,7 +289,10 @@ class TrajectoryOptimizer:
             batch_idx=batch_idx,
             frac_in_target=frac_in_target,
             mean_error_distance=mean_error_distance,
-            ratio_matrix=_format_ratio_table(sample_ids, ratio_matrix)
+            ratio_matrix=_format_ratio_table(sample_ids, ratio_matrix),
+            realized_trajectory=realized_trajectory,
+            best_perf=self.best_perf,
+            current_perf=self.current_perf
         )
         
         print("reflect message:", msg)
@@ -306,14 +309,14 @@ class TrajectoryOptimizer:
         msg = DISTILL_USER_TEMPLATE.format(
             batch_idx=batch_idx,
             previous_experience=self.experience_md,
-            realized_trajectory=_format_trajectory(realized_trajectory),
-            best_perf=self.best_perf,
-            current_perf=self.current_perf,
+            # realized_trajectory=_format_trajectory(realized_trajectory),
+            # best_perf=self.best_perf,
+            # current_perf=self.current_perf,
         )
         
         print("distill message:", msg)
         
-        new_experience = self._call(msg).strip()
+        new_experience = self._call(msg).strip
         self.experience_md = new_experience
         if self.experience_path:
             with open(self.experience_path, "w", encoding="utf-8") as f:
