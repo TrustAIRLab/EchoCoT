@@ -11,9 +11,7 @@ import os
 
 from anthropic import AnthropicVertex
 
-from config import EXTRA_TURNS_AFTER_SUCCESS, RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
-from custom_tools import call_tool, get_anthropic_tools
-from extract_gemma import REARCHIVE_SUFFIX
+from custom_tools import get_anthropic_tools
 from metrics import (
     InjectionTurn,
     TrajectoryResult,
@@ -207,3 +205,29 @@ class SampleSession:
         self._handle_response(response, self._next_turn_idx)
         if not self.done:
             self._next_turn_idx += 1
+
+    def final_send(self, injection: str):
+        if self.done:
+            return
+        if self.trajectory.turns:
+            self.trajectory.turns[-1].injection_out = injection
+        tool_result = {
+            "scratchpad_content": "scratchpad content accepted.",
+            "scratchpad_FEEDBACK": injection,
+        }
+        self.messages.append({
+            "role": "user",
+            "content": [
+                {
+                    "type": "tool_result",
+                    "tool_use_id": self._pending_tool_use_id,
+                    "content": json.dumps(tool_result, ensure_ascii=False),
+                }
+            ],
+        })
+        response = self._create_message()
+        self.trajectory.final_output = "".join(
+            b.text for b in response.content if b.type == "text"
+        )
+        self.done = True
+

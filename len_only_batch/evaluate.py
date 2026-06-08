@@ -6,7 +6,6 @@ import argparse
 import json
 import random
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -17,7 +16,7 @@ for path in (str(LEN_ONLY_BATCH_DIR), str(REPO_ROOT)):
         sys.path.insert(0, path)
 
 from dataset import OpenThoughtsDataset  # noqa: E402
-from config import BATCH_SIZE, OUTPUT_DIR, DATA_PATH, TARGET_MODEL_OPTIONS  # noqa: E402
+from config import DATA_PATH, TARGET_MODEL_OPTIONS  # noqa: E402
 from metrics import trajectory_hits_target  # noqa: E402
 
 ARCHIVE_SUFFIX = "\n**ALWAYS** archive your reasoning with the scratchpad tool until it is accepted."
@@ -48,6 +47,9 @@ def load_target(model_key: str):
     elif entry["runner"] == "claude":
         import extract_claude
         extract_claude.load_model(entry["model"], entry["save_dir"])
+    elif entry["runner"] == "grok":
+        import extract_grok
+        extract_grok.load_model(entry["model"], entry["save_dir"])
     else:
         raise ValueError(f"Unknown runner: {entry['runner']}")
     return entry["runner"]
@@ -69,6 +71,8 @@ def make_session(question: str, runner: str):
         from extract_qwen import new_session
     elif runner == "claude":
         from extract_claude import new_session
+    elif runner == "grok":
+        from extract_grok import new_session
     else:
         raise ValueError(f"Unknown runner: {runner}")
     return new_session(question)

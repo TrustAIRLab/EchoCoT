@@ -140,13 +140,6 @@ TARGET_MODEL_OPTIONS = {
         "runner": "grok",
         "notes": "Grok 4.1 Fast Reasoning — Vertex relay strips reasoning_content",
     },
-    "glm-5.1": {
-        "provider": "Vertex AI (Zhipu)",
-        "model": "zai-org/glm-5.1-maas",
-        "save_dir": "",
-        "runner": "glm",
-        "notes": "GLM-5.1 (Z1-Rumination) — reasoning-only, function calling, 754B MoE",
-    },
     # Plug for future API-based target models:
     # "o4-mini": {"provider":"openai_api", "model":"o4-mini", "runner":"openai_responses"},
 }

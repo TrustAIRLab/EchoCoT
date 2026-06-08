@@ -5,8 +5,7 @@ import os
 from google import genai
 from google.genai import types
 
-from config import EXTRA_TURNS_AFTER_SUCCESS, RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
-from custom_tools import call_tool, get_gemini_tools
+from custom_tools import get_gemini_tools
 from extract_gemma import REARCHIVE_SUFFIX
 from metrics import (
     InjectionTurn,
@@ -82,7 +81,7 @@ class SampleSession:
         self._pending_tool_name = None
         self._next_turn_idx = 0
 
-    def _generate(self):
+    def _generate(self, require_tool: bool = True):
         config = types.GenerateContentConfig(
             tools=self._gemini_tools,
             max_output_tokens=2048*16,
@@ -92,7 +91,9 @@ class SampleSession:
             ),
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
             tool_config=types.ToolConfig(
-                function_calling_config=types.FunctionCallingConfig(mode="ANY")
+                function_calling_config=types.FunctionCallingConfig(
+                    mode="ANY" if require_tool else "AUTO"
+                )
             ),
         )
         return _client.models.generate_content(
@@ -198,3 +199,23 @@ class SampleSession:
         self._pending_tool_name = tool_name
         self._record_scratchpad(scratchpad_content, self._next_turn_idx, cot)
         self._next_turn_idx += 1
+
+    def final_send(self, injection: str):
+        if self.done:
+            return
+        if self.trajectory.turns:
+            self.trajectory.turns[-1].injection_out = injection
+        tool_result = {
+            "tool_result": "scratchpad content accepted.",
+            "scratchpad_FEEDBACK": injection,
+        }
+        function_response_part = types.Part.from_function_response(
+            name=self._pending_tool_name or "scratchpad",
+            response=tool_result,
+        )
+        self.contents.append(types.Content(role="user", parts=[function_response_part]))
+        response = self._generate(require_tool=False)
+        answer_blocks, _, _ = _extract_text_thoughts_and_calls(response)
+        self.trajectory.final_output = "\n".join(answer_blocks).strip()
+        self.done = True
+

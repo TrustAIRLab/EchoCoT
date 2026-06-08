@@ -12,9 +12,7 @@ import os
 
 from openai import OpenAI
 
-from config import EXTRA_TURNS_AFTER_SUCCESS, RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
-from custom_tools import call_tool, get_openai_tools
-from extract_gemma import REARCHIVE_SUFFIX
+from custom_tools import get_openai_tools
 from metrics import (
     InjectionTurn,
     TrajectoryResult,
@@ -162,7 +160,6 @@ class SampleSession:
 
         scratchpad_content = ""
         for function_call in function_calls:
-            tool_name = function_call.name
             tool_args = json.loads(function_call.arguments or "{}")
             if not isinstance(tool_args, dict):
                 tool_args = {"content": str(tool_args)}
@@ -204,3 +201,21 @@ class SampleSession:
         self._handle_response(response, self._next_turn_idx)
         if not self.done:
             self._next_turn_idx += 1
+
+    def final_send(self, injection: str):
+        if self.done:
+            return
+        if self.trajectory.turns:
+            self.trajectory.turns[-1].injection_out = injection
+        self._next_input.append({
+            "type": "function_call_output",
+            "call_id": self._pending_call_id,
+            "output": json.dumps({
+                "scratchpad_content": "scratchpad content accepted.",
+                "scratchpad_FEEDBACK": injection,
+            }, ensure_ascii=False),
+        })
+        response = self._create_response(tool_choice="auto")
+        self.trajectory.final_output = response.output_text or ""
+        self.done = True
+
