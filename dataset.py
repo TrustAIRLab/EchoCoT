@@ -11,6 +11,21 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional
 from datasets import load_dataset
 
 
+DEFAULT_DATASET_SOURCES = [
+    {"name": "OpenThoughts", "path": "open-thoughts/OpenThoughts-114k", "subset": "metadata", "split": "train", "streaming": True},
+    {"name": "MATH500", "path": "HuggingFaceH4/MATH-500", "split": "test", "streaming": False},
+    {"name": "JEEBench", "path": "daman1209arora/jeebench", "split": "train", "streaming": False},
+    {
+        "name": "LiveCodeBench",
+        "path": "livecodebench/code_generation_lite",
+        "split": "test",
+        "streaming": False,
+        "load_kwargs": {"trust_remote_code": True, "version_tag": "release_v2"},
+    },
+]
+TRAIN_SPLIT_FRACTION = 0.8
+
+
 @dataclass
 class DatasetSample:
     sample_id: str
@@ -113,6 +128,16 @@ class OpenThoughtsDataset:
 
         return self._sample_remote_dataset()
 
+    def _cache_split(self) -> str:
+        if not self.data_path:
+            return "all"
+        stem = self.data_path.stem.lower()
+        if "test" in stem:
+            return "test"
+        if "train" in stem:
+            return "train"
+        return "all"
+
     def _load_from_path(self, path: Path) -> List[DatasetSample]:
         if path.suffix.lower() == ".json":
             return self._load_cache(path)
@@ -130,16 +155,35 @@ class OpenThoughtsDataset:
         return _sort_samples(samples)
 
     def _sample_remote_dataset(self) -> List[DatasetSample]:
-        dataset_args = [self.source]
-        if self.subset not in (None, "", "default"):
-            dataset_args.append(self.subset)
+        if self.source != "open-thoughts/OpenThoughts-114k":
+            dataset_args = [self.source]
+            if self.subset not in (None, "", "default"):
+                dataset_args.append(self.subset)
+            dataset = load_dataset(
+                *dataset_args,
+                split=self.split,
+                streaming=self.streaming,
+            )
+            return self._sample_records(dataset)
 
-        dataset = load_dataset(
-            *dataset_args,
-            split=self.split,
-            streaming=self.streaming,
-        )
-        return self._sample_records(dataset)
+        split_name = self._cache_split()
+        samples: List[DatasetSample] = []
+        for spec in DEFAULT_DATASET_SOURCES:
+            dataset_args = [spec["path"]]
+            subset = spec.get("subset")
+            if subset not in (None, "", "default"):
+                dataset_args.append(subset)
+            dataset = load_dataset(
+                *dataset_args,
+                split=spec.get("split", "train"),
+                streaming=spec.get("streaming", True),
+                **spec.get("load_kwargs", {}),
+            )
+            source_samples = self._sample_records(_tag_records(dataset, spec["name"]))
+            samples.extend(_select_train_test_split(source_samples, split_name, self.seed))
+        if not samples:
+            raise ValueError("The dataset is empty.")
+        return _sort_samples(samples)
 
     def _sample_records(self, records: Iterable[Dict[str, Any]]) -> List[DatasetSample]:
         samples_by_source: Dict[str, List[DatasetSample]] = {}
@@ -199,15 +243,17 @@ def load_samples(
 
 
 def normalize_sample(record: Dict[str, Any], index: int) -> DatasetSample:
+    source = _coerce_text(_pick_value(record, "source")) or "unknown"
     sample_id = _coerce_text(
-        _pick_value(record, "sample_id", "id")
+        _pick_value(record, "sample_id", "id", "question_id", "problem_id")
     ) or str(index)
+    if source != "unknown" and not sample_id.startswith(f"{source}:"):
+        sample_id = f"{source}:{sample_id}"
     question = _extract_question(record)
     answer = _extract_answer(record)
-    source = _coerce_text(_pick_value(record, "source")) or "unknown"
     domain = _coerce_text(_pick_value(record, "domain"))
     dataset_system = _coerce_text(_pick_value(record, "system", "system_prompt"))
-    test_cases = _pick_value(record, "test_cases")
+    test_cases = _pick_value(record, "test_cases", "public_test_cases", "private_test_cases")
     starter_code = _pick_value(record, "starter_code")
 
     return DatasetSample(
@@ -224,6 +270,28 @@ def normalize_sample(record: Dict[str, Any], index: int) -> DatasetSample:
 
 def _sort_samples(samples: List[DatasetSample]) -> List[DatasetSample]:
     return sorted(samples, key=lambda sample: (sample.source, sample.sample_id))
+
+
+def _tag_records(records: Iterable[Dict[str, Any]], source: str) -> Iterator[Dict[str, Any]]:
+    for record in records:
+        if isinstance(record, dict):
+            tagged = dict(record)
+            tagged.setdefault("source", source)
+            yield tagged
+
+
+def _select_train_test_split(samples: List[DatasetSample], split_name: str, seed: int) -> List[DatasetSample]:
+    if split_name == "all":
+        return samples
+    rng = random.Random(f"{seed}:train-test-split")
+    selected = []
+    for sample in samples:
+        in_train = rng.random() < TRAIN_SPLIT_FRACTION
+        if (split_name == "train" and in_train) or (split_name == "test" and not in_train):
+            selected.append(sample)
+    if not selected and samples:
+        return samples[:1] if split_name == "train" else samples[-1:]
+    return selected
 
 
 def _iter_jsonl_records(path: Path) -> Iterator[Dict[str, Any]]:
@@ -275,11 +343,14 @@ def _pick_value(record: Dict[str, Any], *keys: str) -> Any:
 
 
 def _extract_question(record: Dict[str, Any]) -> str:
-    for key in ("question", "problem", "prompt", "instruction"):
+    for key in ("question", "problem", "prompt", "instruction", "question_content"):
         value = _pick_value(record, key)
         text = _coerce_text(value)
         if text:
-            return text
+            title = _coerce_text(_pick_value(record, "question_title", "title"))
+            options = _coerce_text(_pick_value(record, "options", "choices"))
+            parts = [part for part in (title, text, f"Options: {options}" if options else "") if part]
+            return "\n\n".join(parts)
 
     conversations = record.get("conversations") or record.get("messages") or []
     if isinstance(conversations, list):
@@ -297,7 +368,7 @@ def _extract_question(record: Dict[str, Any]) -> str:
 
 
 def _extract_answer(record: Dict[str, Any]) -> str:
-    for key in ("answer", "ground_truth_solution", "deepseek_solution", "solution"):
+    for key in ("answer", "ground_truth_solution", "deepseek_solution", "solution", "output", "canonical_solution"):
         text = _coerce_text(_pick_value(record, key))
         if text:
             return text
