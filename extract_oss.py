@@ -13,7 +13,7 @@ from metrics import (
     TrajectoryResult,
     count_tokens,
     compute_eval_metrics,
-    compute_token_count_ratio,
+    compute_length_metrics,
     token_count_ratio_passes_threshold,
 )
 from custom_tools import get_openai_tools
@@ -402,10 +402,11 @@ class SampleSession:
 
     def _record_scratchpad(self, content: str, turn_idx: int, cot: str):
         token_count = count_tokens(content)
-        ratio = compute_token_count_ratio(
+        length_m = compute_length_metrics(
             token_count,
             self.trajectory.ground_truth_tokens,
         )
+        ratio = length_m["token_count_ratio"]
 
         print("Turn:", turn_idx, "Question", self.question)
         print("CoT:", cot[:300])
@@ -422,11 +423,14 @@ class SampleSession:
                 cot=cot,
                 scratchpad_in_tokens=token_count,
                 token_count_ratio=ratio,
-                token_overlap_pct=eval_m["token_overlap_pct"],
-                jaccard=eval_m["jaccard"],
+                length_error=length_m["length_error"],
+                token_precision=eval_m["token_precision"],
+                token_recall=eval_m["token_recall"],
+                token_f1=eval_m["token_f1"],
+                rouge_l=eval_m["rouge_l"],
             )
         )
-        print(token_count, self.trajectory.ground_truth_tokens, ratio, "overlap:", eval_m["token_overlap_pct"], "jaccard:", eval_m["jaccard"])
+        print(token_count, self.trajectory.ground_truth_tokens, ratio, "token_f1:", eval_m["token_f1"], "rouge_l:", eval_m["rouge_l"])
 
         self.current_ratio = ratio
 

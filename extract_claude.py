@@ -16,7 +16,7 @@ from metrics import (
     InjectionTurn,
     TrajectoryResult,
     compute_eval_metrics,
-    compute_token_count_ratio,
+    compute_length_metrics,
     token_count_ratio_passes_threshold,
     count_tokens,
 )
@@ -105,7 +105,8 @@ class SampleSession:
 
     def _record_scratchpad(self, content: str, turn_idx: int, cot:str):
         token_count = count_tokens(content)
-        ratio = compute_token_count_ratio(token_count, self.trajectory.ground_truth_tokens)
+        length_m = compute_length_metrics(token_count, self.trajectory.ground_truth_tokens)
+        ratio = length_m["token_count_ratio"]
         print(f"Turn-{turn_idx}:", token_count, self.trajectory.ground_truth_tokens, ratio)
         
         eval_m = compute_eval_metrics(content, self.trajectory.ground_truth_cot)
@@ -115,8 +116,11 @@ class SampleSession:
             scratchpad_in=content,
             scratchpad_in_tokens=token_count,
             token_count_ratio=ratio,
-            token_overlap_pct=eval_m["token_overlap_pct"],
-            jaccard=eval_m["jaccard"],
+            length_error=length_m["length_error"],
+            token_precision=eval_m["token_precision"],
+            token_recall=eval_m["token_recall"],
+            token_f1=eval_m["token_f1"],
+            rouge_l=eval_m["rouge_l"],
         ))
         self.current_ratio = ratio
         if token_count_ratio_passes_threshold(ratio):

@@ -10,6 +10,7 @@ from config import (
     RATIO_LOWER_BOUND,
     RATIO_UPPER_BOUND,
 )
+from metrics import calculate_frac_in_target, calculate_mean_error_distance
 
 # Module-level state (set by main.py before use)
 client: OpenAI = None
@@ -85,57 +86,6 @@ def _call_api(messages: list) -> str:
 
     response = client.chat.completions.create(model=model_id, messages=messages)
     return (response.choices[0].message.content or "").strip()
-
-def calculate_frac_in_target(ratio_matrix: list[list[float]]):
-    n_samples = max(len(row) for row in ratio_matrix)
-    if n_samples == 0:
-        return 0.0
-
-    best_ratios: list[float] = []
-
-    for sample_idx in range(n_samples):
-        sample_ratios = [
-            row[sample_idx]
-            for row in ratio_matrix
-            if sample_idx < len(row)
-        ]
-
-        if not sample_ratios:
-            continue
-
-        best_ratio = min(sample_ratios, key=lambda x: abs(x - 1.0))
-        best_ratios.append(best_ratio)
-
-    if not best_ratios:
-        return 0.0
-
-    n_in_target = sum(
-        RATIO_LOWER_BOUND <= ratio <= RATIO_UPPER_BOUND
-        for ratio in best_ratios
-    )
-    return n_in_target / len(best_ratios)
-
-def calculate_mean_error_distance(ratio_matrix: list[list[float]]) -> float:
-    n_samples = max(len(row) for row in ratio_matrix)
-    best_ratios: list[float] = []
-
-    for sample_idx in range(n_samples):
-        sample_ratios = [
-            row[sample_idx]
-            for row in ratio_matrix
-            if sample_idx < len(row)
-        ]
-
-        if not sample_ratios:
-            continue
-
-        best_ratio = min(sample_ratios, key=lambda x: abs(x - 1.0))
-        best_ratios.append(best_ratio)
-
-    if not best_ratios:
-        return 0.0
-
-    return sum(abs(ratio - 1.0) for ratio in best_ratios) / len(best_ratios)
 
 def _format_ratio_table(sample_ids: list[str], ratio_matrix: list[list[float]]) -> str:
     n_samples = len(sample_ids)
