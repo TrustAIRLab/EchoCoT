@@ -193,8 +193,11 @@ def log_result(output_dir, batch_idx, sample_idx, sample_id, question, trajector
         "final_scratchpad_tokens": trajectory.final_scratchpad_tokens,
         "final_token_count_ratio": trajectory.final_token_count_ratio,
         "best_token_count_ratio": trajectory.best_token_count_ratio,
-        "final_token_overlap_pct": trajectory.turns[trajectory.success_turn].token_overlap_pct if trajectory.turns else 0.0,
-        "final_jaccard": trajectory.turns[trajectory.success_turn].jaccard if trajectory.turns else 0.0,
+        "final_length_error": trajectory.turns[trajectory.success_turn].length_error if trajectory.turns else 0.0,
+        "final_token_precision": trajectory.turns[trajectory.success_turn].token_precision if trajectory.turns else 0.0,
+        "final_token_recall": trajectory.turns[trajectory.success_turn].token_recall if trajectory.turns else 0.0,
+        "final_token_f1": trajectory.turns[trajectory.success_turn].token_f1 if trajectory.turns else 0.0,
+        "final_rouge_l": trajectory.turns[trajectory.success_turn].rouge_l if trajectory.turns else 0.0,
         "success": trajectory.success,
         "success_turn": trajectory.success_turn,
     })
@@ -204,8 +207,11 @@ def log_result(output_dir, batch_idx, sample_idx, sample_id, question, trajector
         "scratchpad_content": t.scratchpad_in,
         "scratchpad_in_tokens": t.scratchpad_in_tokens,
         "token_count_ratio": t.token_count_ratio,
-        "token_overlap_pct": t.token_overlap_pct,
-        "jaccard": t.jaccard,
+        "length_error": t.length_error,
+        "token_precision": t.token_precision,
+        "token_recall": t.token_recall,
+        "token_f1": t.token_f1,
+        "rouge_l": t.rouge_l,
         "injection_out": t.injection_out,
         "stopped": t.stopped,
     } for t in trajectory.turns]
@@ -318,7 +324,7 @@ def train(
         
         batch_final_ratios = [tr.final_token_count_ratio for tr in trajectories]
         batch_successes = [tr.success for tr in trajectories]
-        batch_overlaps = [tr.turns[-1].token_overlap_pct if tr.turns else 0.0 for tr in trajectories]
+        batch_token_f1s = [tr.turns[-1].token_f1 if tr.turns else 0.0 for tr in trajectories]
         frac_in_target = calculate_frac_in_target(ratio_matrix)
         mean_error_distance = calculate_mean_error_distance(ratio_matrix)
 
@@ -366,7 +372,7 @@ def train(
             "critique": critique[:2000],
         })
 
-        optimizer.distill(batch_idx, batch_final_ratios, batch_overlaps, batch_successes, realized_trajectory, frac_in_target)
+        optimizer.distill(batch_idx, batch_final_ratios, batch_token_f1s, batch_successes, realized_trajectory, frac_in_target)
         print(f"  experience.md updated -> {experience_path}")
 
         if frac_in_target <= global_best_frac + MIN_SCORE_DELTA:

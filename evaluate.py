@@ -119,8 +119,11 @@ def turn_to_record(turn) -> dict[str, Any]:
         "scratchpad_content": turn.scratchpad_in,
         "scratchpad_tokens": turn.scratchpad_in_tokens,
         "token_count_ratio": turn.token_count_ratio,
-        "token_overlap_pct": turn.token_overlap_pct,
-        "jaccard": turn.jaccard,
+        "length_error": turn.length_error,
+        "token_precision": turn.token_precision,
+        "token_recall": turn.token_recall,
+        "token_f1": turn.token_f1,
+        "rouge_l": turn.rouge_l,
         "injection_out": turn.injection_out,
         "distance_to_one": abs(turn.token_count_ratio - 1.0),
     }
@@ -219,8 +222,11 @@ def run_model_evaluation(
                 "scratchpad_content": "",
                 "scratchpad_tokens": 0,
                 "token_count_ratio": 0.0,
-                "token_overlap_pct": 0.0,
-                "jaccard": 0.0,
+                "length_error": 0.0,
+                "token_precision": 0.0,
+                "token_recall": 0.0,
+                "token_f1": 0.0,
+                "rouge_l": 0.0,
                 "injection_out": "",
                 "distance_to_one": 1.0,
             }
@@ -243,8 +249,8 @@ def run_model_evaluation(
         print(
             f"[{model_key}] sample={sample.sample_id} best_turn={best_record['turn_idx']} "
             f"ratio={best_record['token_count_ratio']:.3f} "
-            f"overlap={best_record['token_overlap_pct']:.3f} "
-            f"jaccard={best_record['jaccard']:.3f} "
+            f"token_f1={best_record['token_f1']:.3f} "
+            f"rouge_l={best_record['rouge_l']:.3f} "
             f"success={trajectory.success}"
         )
         
@@ -255,15 +261,18 @@ def run_model_evaluation(
         "success_count": success_count,
         "success_rate": success_count / n if n else 0.0,
         "avg_token_count_ratio": average(best_records, "token_count_ratio"),
-        "avg_token_overlap_pct": average(best_records, "token_overlap_pct"),
-        "avg_jaccard": average(best_records, "jaccard"),
+        "avg_length_error": average(best_records, "length_error"),
+        "avg_token_precision": average(best_records, "token_precision"),
+        "avg_token_recall": average(best_records, "token_recall"),
+        "avg_token_f1": average(best_records, "token_f1"),
+        "avg_rouge_l": average(best_records, "rouge_l"),
         "records_path": str(records_path),
     }
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print(
         f"[{model_key}] AVG ratio={summary['avg_token_count_ratio']:.3f} "
-        f"overlap={summary['avg_token_overlap_pct']:.3f} "
-        f"jaccard={summary['avg_jaccard']:.3f} success={success_count}/{n}"
+        f"token_f1={summary['avg_token_f1']:.3f} "
+        f"rouge_l={summary['avg_rouge_l']:.3f} success={success_count}/{n}"
     )
     return summary
 
@@ -314,8 +323,8 @@ def main() -> None:
             print(
                 f"{summary['model_key']}: n={summary['num_samples']} "
                 f"ratio={summary['avg_token_count_ratio']:.3f} "
-                f"overlap={summary['avg_token_overlap_pct']:.3f} "
-                f"jaccard={summary['avg_jaccard']:.3f} "
+                f"token_f1={summary['avg_token_f1']:.3f} "
+                f"rouge_l={summary['avg_rouge_l']:.3f} "
                 f"success={summary['success_count']}/{summary['num_samples']}"
             )
 
