@@ -215,6 +215,10 @@ MAX_INJECTION_TURNS = 2
 # Training inner-loop target range for token_count_ratio
 RATIO_LOWER_BOUND = 0.90
 RATIO_UPPER_BOUND = 1.10
+
+# CoT-summary feedback mode target range for summary token recall
+TOKEN_RECALL_LOWER_BOUND = 0.50
+TOKEN_RECALL_UPPER_BOUND = 1.00
 # After first success, allow this many extra turns for improvement
 EXTRA_TURNS_AFTER_SUCCESS = 0
 
