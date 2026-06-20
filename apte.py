@@ -9,8 +9,10 @@ from config import (
     MAX_INJECTION_TURNS,
     RATIO_LOWER_BOUND,
     RATIO_UPPER_BOUND,
+    TOKEN_RECALL_LOWER_BOUND,
+    TOKEN_RECALL_UPPER_BOUND,
 )
-from metrics import calculate_frac_in_target, calculate_mean_error_distance
+from metrics import calculate_frac_in_target, calculate_mean_error_distance, compute_lexical_metrics_summary
 
 # Module-level state (set by main.py before use)
 client: OpenAI = None
@@ -18,6 +20,8 @@ model_id: str = ""
 api_type: str = "responses"     # "chat" or "responses"
 max_turns: int = MAX_INJECTION_TURNS
 prompt_module_name: str = "prompts"
+workflow_mode: str = "length_only"
+SUMMARY_MODEL = "gpt-4.1-mini"
 
 OPTIMIZER_SYSTEM_PROMPT = ""
 INJECT_BATCH_USER_TEMPLATE = ""
@@ -28,10 +32,14 @@ INITIAL_EXPERIENCE_MD = ""
 
 def _normalize_prompt_module(name: str) -> str:
     """Return the importable prompt module name for supported aliases."""
+    name = os.path.splitext(os.path.basename(name))[0]
     aliases = {
         "prompts": "prompts",
         "prompts_cot": "prompts_cot",
         "prompts_cot_gpt": "prompts_cot_gpt",
+        "prompts_summary_feedback": "prompts_summary_feedback",
+        "prompts_cot_gpt_summary_feedback": "prompts_cot_gpt_summary_feedback",
+        "optimizer_summary_feedback": "prompts_summary_feedback",
     }
     try:
         return aliases[name]
@@ -61,13 +69,14 @@ _load_prompt_templates()
 
 
 def init(openai_client: OpenAI, model: str, model_api_type: str,
-         max_injection_turns: int, prompt_module: str = "prompts"):
+         max_injection_turns: int, prompt_module: str = "prompts", mode: str = "length_only"):
     """Set the optimizer's API client, model, API type, and prompt module."""
-    global client, model_id, api_type, max_turns
+    global client, model_id, api_type, max_turns, workflow_mode
     client = openai_client
     model_id = model
     api_type = model_api_type
     max_turns = max_injection_turns
+    workflow_mode = mode
     _load_prompt_templates(prompt_module)
 
 
@@ -86,6 +95,50 @@ def _call_api(messages: list) -> str:
 
     response = client.chat.completions.create(model=model_id, messages=messages)
     return (response.choices[0].message.content or "").strip()
+
+
+
+def summarize_cot(ground_truth_cot: str) -> str:
+    """Generate a concise reference summary of the ground-truth CoT."""
+    if not ground_truth_cot:
+        return ""
+    summary_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    response = summary_client.chat.completions.create(
+        model=SUMMARY_MODEL,
+        messages=[
+            {"role": "system", "content": "Summarize the key reasoning steps in the chain of thought concisely. Preserve important facts, operations, and decision points. Do not add new reasoning."},
+            {"role": "user", "content": ground_truth_cot},
+        ],
+        temperature=0,
+    )
+    return (response.choices[0].message.content or "").strip()
+
+
+def apply_summary_feedback_metrics(trajectories: list) -> None:
+    """Attach CoT summaries and summary-based lexical metrics to trajectories."""
+    if workflow_mode != "cot_summary_feedback":
+        return
+    for trajectory in trajectories:
+        if not trajectory.cot_summary:
+            trajectory.cot_summary = summarize_cot(trajectory.ground_truth_cot)
+        for turn in trajectory.turns:
+            lexical = compute_lexical_metrics_summary(turn.scratchpad_in, trajectory.cot_summary)
+            turn.cot_summary = trajectory.cot_summary
+            turn.summary_token_recall = lexical["token_recall"]
+            turn.token_recall = lexical["token_recall"]
+
+
+def _format_summary_feedback(trajectories: list | None) -> str:
+    if workflow_mode != "cot_summary_feedback" or not trajectories:
+        return ""
+    lines = ["Evaluation metrics (CoT-summary lexical feedback):"]
+    lines.append(f"Target range: {TOKEN_RECALL_LOWER_BOUND} <= token_recall <= {TOKEN_RECALL_UPPER_BOUND}")
+    for i, trajectory in enumerate(trajectories):
+        recall = trajectory.turns[-1].summary_token_recall if trajectory.turns else 0.0
+        summary = (trajectory.cot_summary or "")[:500]
+        lines.append(f"Sample {i+1}: token_recall={recall:.3f}; CoT summary: {summary}")
+    lines.append("token_recall measures how much of the CoT summary vocabulary is covered by the scratchpad content; raise it without adding filler or losing the token_count_ratio target.")
+    return "\n".join(lines)
 
 def _format_ratio_table(sample_ids: list[str], ratio_matrix: list[list[float]]) -> str:
     n_samples = len(sample_ids)
@@ -175,7 +228,7 @@ class TrajectoryOptimizer:
         self.messages.append({"role": "assistant", "content": text})
         return text
 
-    def inject_batch(self, turn_idx: int, per_sample_ratios: list[float], scratchpad_preview: str, cot_preview:str) -> str:
+    def inject_batch(self, turn_idx: int, per_sample_ratios: list[float], scratchpad_preview: str, cot_preview:str, trajectories: list | None = None) -> str:
         """Generate one universal injection for the full minibatch."""
 
         per_sample_ratios_str = ""
@@ -192,6 +245,9 @@ class TrajectoryOptimizer:
             cot_preview=cot_preview,
             per_sample_ratios=per_sample_ratios_str
         )
+        summary_feedback = _format_summary_feedback(trajectories)
+        if summary_feedback:
+            msg += "\n\n" + summary_feedback
         # if self.best_trajectory:
         #     msg += "\n\nBest universal trajectory so far:\n" + _format_trajectory(self.best_trajectory)
         #     msg += f"\nBest performance: {self.best_perf}"
@@ -251,6 +307,9 @@ class TrajectoryOptimizer:
             best_perf=self.best_perf,
             current_perf=self.current_perf
         )
+        summary_feedback = _format_summary_feedback(trajectories)
+        if summary_feedback:
+            msg += "\n\n" + summary_feedback
         
         print("reflect message:", msg)
         

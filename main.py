@@ -24,10 +24,16 @@ from config import (
     RATIO_LOWER_BOUND,
     RATIO_UPPER_BOUND,
     TARGET_MODEL_OPTIONS,
+    TOKEN_RECALL_LOWER_BOUND,
+    TOKEN_RECALL_UPPER_BOUND,
 )
 import apte as opt_module
 from apte import TrajectoryOptimizer
-from metrics import trajectory_hits_target, calculate_frac_in_target, calculate_mean_error_distance
+from metrics import (
+    trajectory_hits_target,
+    calculate_frac_in_target,
+    calculate_mean_error_distance,
+)
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from dataset import ReasoningDataset  # noqa: E402
@@ -111,13 +117,35 @@ def _run_parallel(callables):
         list(executor.map(lambda fn: fn(), callables))
 
 
-def run_batch(optimizer, minibatch, runner: str, max_turns: int):
+
+
+def update_trajectory_success(trajectory, mode: str):
+    """Apply mode-specific success criteria and first success turn."""
+    if mode == "cot_summary_feedback":
+        for turn in trajectory.turns:
+            if (RATIO_LOWER_BOUND <= turn.token_count_ratio <= RATIO_UPPER_BOUND
+                    and TOKEN_RECALL_LOWER_BOUND <= turn.summary_token_recall <= TOKEN_RECALL_UPPER_BOUND):
+                trajectory.success = True
+                trajectory.success_turn = turn.turn_idx
+                return
+        trajectory.success = False
+        trajectory.success_turn = -1
+        return
+
+    trajectory.success = trajectory_hits_target(trajectory)
+    trajectory.success_turn = next(
+        (turn.turn_idx for turn in trajectory.turns if RATIO_LOWER_BOUND <= turn.token_count_ratio <= RATIO_UPPER_BOUND),
+        -1,
+    )
+
+def run_batch(optimizer, minibatch, runner: str, max_turns: int, mode: str = "length_only"):
     """Run a minibatch in lockstep with one universal injection per turn."""
     sessions = [make_session(sample.question + ARCHIVE_SUFFIX, runner) for sample in minibatch]
     # sample_ids = [sample.sample_id for sample in minibatch]
     for sess, sample in zip(sessions, minibatch):
         sess.sample_id = sample.sample_id
     _run_parallel([sess.start for sess in sessions])
+    opt_module.apply_summary_feedback_metrics([sess.trajectory for sess in sessions])
         
 
     realized_trajectory: list[str] = []
@@ -137,7 +165,8 @@ def run_batch(optimizer, minibatch, runner: str, max_turns: int):
             turn_idx,
             ratios,
             scratchpad_preview=scratchpad_preview,
-            cot_preview=cot_preview
+            cot_preview=cot_preview,
+            trajectories=[sess.trajectory for sess in sessions],
         )
         
         print(f"======== turn-{turn_idx}==========")
@@ -146,6 +175,7 @@ def run_batch(optimizer, minibatch, runner: str, max_turns: int):
                 
         active_sessions = [sess for sess in sessions if not sess.done]
         _run_parallel([lambda sess=sess: sess.send(injection) for sess in active_sessions])
+        opt_module.apply_summary_feedback_metrics([sess.trajectory for sess in sessions])
                 
         realized_trajectory.append(injection)
         ratio_matrix.append([sess.current_ratio for sess in sessions])
@@ -158,7 +188,7 @@ def run_batch(optimizer, minibatch, runner: str, max_turns: int):
     for sess in sessions:
         if sess.trajectory.turns:
             sess.trajectory.turns[-1].stopped = True
-            sess.trajectory.success = trajectory_hits_target(sess.trajectory)
+            update_trajectory_success(sess.trajectory, mode)
 
     return [sess.trajectory for sess in sessions], realized_trajectory, ratio_matrix, scratchpad_preview, cot_preview
 
@@ -183,6 +213,7 @@ def _jsonl(path: str, record: dict):
 
 
 def log_result(output_dir, batch_idx, sample_idx, sample_id, question, trajectory):
+    final_idx = trajectory.success_turn if trajectory.success_turn >= 0 else -1
     _jsonl(os.path.join(output_dir, "scores.jsonl"), {
         "batch": batch_idx,
         "sample_idx": sample_idx,
@@ -192,11 +223,13 @@ def log_result(output_dir, batch_idx, sample_idx, sample_id, question, trajector
         "final_scratchpad_tokens": trajectory.final_scratchpad_tokens,
         "final_token_count_ratio": trajectory.final_token_count_ratio,
         "best_token_count_ratio": trajectory.best_token_count_ratio,
-        "final_length_error": trajectory.turns[trajectory.success_turn].length_error if trajectory.turns else 0.0,
-        "final_token_precision": trajectory.turns[trajectory.success_turn].token_precision if trajectory.turns else 0.0,
-        "final_token_recall": trajectory.turns[trajectory.success_turn].token_recall if trajectory.turns else 0.0,
-        "final_token_f1": trajectory.turns[trajectory.success_turn].token_f1 if trajectory.turns else 0.0,
-        "final_rouge_l": trajectory.turns[trajectory.success_turn].rouge_l if trajectory.turns else 0.0,
+        "final_length_error": trajectory.turns[final_idx].length_error if trajectory.turns else 0.0,
+        "final_token_precision": trajectory.turns[final_idx].token_precision if trajectory.turns else 0.0,
+        "final_token_recall": trajectory.turns[final_idx].token_recall if trajectory.turns else 0.0,
+        "final_summary_token_recall": trajectory.turns[final_idx].summary_token_recall if trajectory.turns else 0.0,
+        "cot_summary": trajectory.cot_summary,
+        "final_token_f1": trajectory.turns[final_idx].token_f1 if trajectory.turns else 0.0,
+        "final_rouge_l": trajectory.turns[final_idx].rouge_l if trajectory.turns else 0.0,
         "success": trajectory.success,
         "success_turn": trajectory.success_turn,
     })
@@ -212,6 +245,8 @@ def log_result(output_dir, batch_idx, sample_idx, sample_id, question, trajector
         "token_f1": t.token_f1,
         "rouge_l": t.rouge_l,
         "injection_out": t.injection_out,
+        "cot_summary": t.cot_summary,
+        "summary_token_recall": t.summary_token_recall,
         "stopped": t.stopped,
     } for t in trajectory.turns]
 
@@ -222,6 +257,7 @@ def log_result(output_dir, batch_idx, sample_idx, sample_id, question, trajector
         "question": question,
         "ground_truth_cot": trajectory.ground_truth_cot,
         "ground_truth_tokens": trajectory.ground_truth_tokens,
+        "cot_summary": trajectory.cot_summary,
         "trajectory_turns": turns_data,
         "success": trajectory.success,
         "success_turn": trajectory.success_turn,
@@ -242,6 +278,7 @@ def train(
     seed=42,
     injection_turns=MAX_INJECTION_TURNS,
     prompt_file="prompts",
+    mode="length_only",
 ):
     if target_model_key not in TARGET_MODEL_OPTIONS:
         print(f"Unknown target: {target_model_key}")
@@ -256,10 +293,11 @@ def train(
 
     oe = OPTIMIZER_MODEL_OPTIONS[optimizer_model_key]
     client = create_optimizer_client(oe)
-    opt_module.init(client, oe["model"], oe["api_type"], injection_turns, prompt_file)
+    opt_module.init(client, oe["model"], oe["api_type"], injection_turns, prompt_file, mode)
 
     print(f"Target:    {te['notes']}")
     print(f"Optimizer: {oe['provider']} / {oe['model']} (api: {oe['api_type']})")
+    print(f"Mode: {mode}")
     print(f"Prompt file: {prompt_file}")
     print(f"Max injection turns: {injection_turns}")
     print(f"Training target range: {RATIO_LOWER_BOUND} <= token_count_ratio <= {RATIO_UPPER_BOUND}")
@@ -277,6 +315,9 @@ def train(
             "max_batches": max_batches,
             "max_injection_turns": injection_turns,
             "prompt_file": prompt_file,
+            "mode": mode,
+            "token_recall_lower_bound": TOKEN_RECALL_LOWER_BOUND,
+            "token_recall_upper_bound": TOKEN_RECALL_UPPER_BOUND,
             "seed": seed,
             "ratio_lower_bound": RATIO_LOWER_BOUND,
             "ratio_upper_bound": RATIO_UPPER_BOUND,
@@ -318,7 +359,7 @@ def train(
         for idx, sp in enumerate(batch):
             print(f"Question-{idx}:", sp.question[:100])
             
-        trajectories, realized_trajectory, ratio_matrix, scratchpad_preview, cot_preview = run_batch(optimizer, batch, runner, injection_turns)
+        trajectories, realized_trajectory, ratio_matrix, scratchpad_preview, cot_preview = run_batch(optimizer, batch, runner, injection_turns, mode)
         # print("ratio matrix:", ratio_matrix)
         
         batch_final_ratios = [tr.final_token_count_ratio for tr in trajectories]
@@ -366,6 +407,8 @@ def train(
             "mean_error_distance": mean_error_distance,
             "realized_trajectory": realized_trajectory,
             "ratio_matrix": ratio_matrix,
+            "cot_summaries": [tr.cot_summary for tr in trajectories],
+            "summary_token_recalls": [[turn.summary_token_recall for turn in tr.turns] for tr in trajectories],
             "best_perf": optimizer.best_perf,
             "current_perf": optimizer.current_perf,
             "critique": critique[:2000],
@@ -403,7 +446,8 @@ def cli():
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--max-injection-turns", type=int, default=MAX_INJECTION_TURNS)
-    parser.add_argument("--prompt-file", default="prompts", choices=["prompts", "prompts_cot", "prompts_cot_gpt"])
+    parser.add_argument("--mode", default="length_only", choices=["length_only", "cot_summary_feedback"])
+    parser.add_argument("--prompt-file", default="prompts")
     parser.add_argument("--list-models", action="store_true")
 
     args = parser.parse_args()
@@ -420,7 +464,8 @@ def cli():
         seed=args.seed,
         injection_turns=args.max_injection_turns,
         prompt_file=args.prompt_file,
-        dataset=args.dataset
+        dataset=args.dataset,
+        mode=args.mode
     )
 
 

@@ -5,7 +5,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Dict
 
-from config import RATIO_LOWER_BOUND, RATIO_UPPER_BOUND
+from config import RATIO_LOWER_BOUND, RATIO_UPPER_BOUND, TOKEN_RECALL_LOWER_BOUND, TOKEN_RECALL_UPPER_BOUND
 
 try:
     from rouge_score import rouge_scorer
@@ -125,10 +125,24 @@ def compute_token_precision(recon_tokens: list, gt_tokens: list) -> float:
 
 
 def compute_token_recall(recon_tokens: list, gt_tokens: list) -> float:
-    """Token Recall = overlap_tokens / ground_truth_tokens."""
+    """Token Recall = overlap_tokens / reference_tokens."""
     if not gt_tokens:
         return 0.0
     return compute_token_overlap_counts(recon_tokens, gt_tokens) / len(gt_tokens)
+
+
+def token_recall(reference: str, candidate: str) -> float:
+    """Return how much of the reference vocabulary is covered by the candidate."""
+    reference_vocab = set(_tokenize_words(reference))
+    if not reference_vocab:
+        return 0.0
+    candidate_vocab = set(_tokenize_words(candidate))
+    return len(reference_vocab & candidate_vocab) / len(reference_vocab)
+
+
+def token_recall_passes_threshold(value: float) -> bool:
+    """Return True if token_recall is within configured bounds."""
+    return TOKEN_RECALL_LOWER_BOUND <= value <= TOKEN_RECALL_UPPER_BOUND
 
 
 def compute_token_f1(token_precision: float, token_recall: float) -> float:
@@ -214,10 +228,10 @@ def compute_lexical_metrics_summary(
     recon_tokens = _metric_token_ids(reconstructed)
     summary_tokens = _metric_token_ids(reasoning_summary)
     token_precision = compute_token_precision(recon_tokens, summary_tokens)
-    token_recall = compute_token_recall(recon_tokens, summary_tokens)
-    token_f1 = compute_token_f1(token_precision, token_recall)
+    token_recall_value = token_recall(reasoning_summary, reconstructed)
+    token_f1 = compute_token_f1(token_precision, token_recall_value)
     return {
-        "token_recall": token_recall,
+        "token_recall": token_recall_value,
         "rouge_l": compute_rouge_l_recall(reconstructed, reasoning_summary),
         "token_precision": token_precision,
         "token_f1": token_f1,
@@ -255,6 +269,8 @@ class InjectionTurn:
     token_f1: float = 0.0
     rouge_l: float = 0.0
     injection_out: str = ""
+    cot_summary: str = ""
+    summary_token_recall: float = 0.0
     stopped: bool = False
 
 
@@ -262,6 +278,7 @@ class InjectionTurn:
 class TrajectoryResult:
     turns: list = field(default_factory=list)
     ground_truth_cot: str = ""      # first-turn thinking (kept for eval, never shown to optimizer)
+    cot_summary: str = ""           # concise summary used only in summary-feedback mode
     ground_truth_tokens: int = 0
     final_output: str = ""
     success: bool = False           # system in-range state for token_count_ratio
@@ -320,6 +337,15 @@ class TrajectoryResult:
 def trajectory_hits_target(trajectory: TrajectoryResult) -> bool:
     """Return True if any turn in the trajectory is within configured bounds."""
     return any(token_count_ratio_passes_threshold(t.token_count_ratio) for t in trajectory.turns)
+
+
+def trajectory_hits_summary_feedback_target(trajectory: TrajectoryResult) -> bool:
+    """Return True if any turn passes both length and summary-recall bounds."""
+    return any(
+        token_count_ratio_passes_threshold(t.token_count_ratio)
+        and token_recall_passes_threshold(t.summary_token_recall)
+        for t in trajectory.turns
+    )
 
 
 def frac_trajectories_in_target(trajectories: list[TrajectoryResult]) -> float:
