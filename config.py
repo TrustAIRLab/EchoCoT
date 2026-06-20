@@ -98,9 +98,9 @@ TARGET_MODEL_OPTIONS = {
         "runner": "qwen",
         "notes": "Qwen3.5 Plus — hybrid thinking, on by default (commercial)",
     },
-    "qwen3.6-plus": {
+    "qwen3.7-plus": {
         "provider": "DashScope API",
-        "model": "qwen3.6-plus",
+        "model": "qwen3.7-plus",
         "save_dir": "",
         "runner": "qwen",
         "notes": "Qwen3 Max",
@@ -210,7 +210,7 @@ BATCH_SIZE = 8
 MAX_BATCHES = 100
 EARLY_STOP_PATIENCE = 20
 MIN_SCORE_DELTA = 0.05
-MAX_INJECTION_TURNS = 3
+MAX_INJECTION_TURNS = 2
 
 # Training inner-loop target range for token_count_ratio
 RATIO_LOWER_BOUND = 0.90
@@ -226,7 +226,6 @@ DEFAULT_OPTIMIZER_MODEL = "deepseek-reasoner"
 # ---------------------------------------------------------------------------
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(_HERE, "data/openthoughts_sample_train.json")
-TEST_DATA_PATH = os.path.join(_HERE, "data/openthoughts_sample_test.json")
-SAMPLES_PER_SOURCE = 100
+DATA_PATH = os.path.join(_HERE, "data")
+TEST_DATA_PATH = os.path.join(_HERE, "data")
 OUTPUT_DIR = os.path.join(_HERE, "results")

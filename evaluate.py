@@ -11,11 +11,6 @@ from pathlib import Path
 from typing import Any, Iterable
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-LEN_ONLY_BATCH_DIR = REPO_ROOT / "len_only_batch"
-for path in (str(LEN_ONLY_BATCH_DIR), str(REPO_ROOT)):
-    if path not in sys.path:
-        sys.path.insert(0, path)
-
 from dataset import OpenThoughtsDataset  # noqa: E402
 from config import TARGET_MODEL_OPTIONS  # noqa: E402
 from metrics import trajectory_hits_target  # noqa: E402
@@ -123,8 +118,7 @@ def turn_to_record(turn) -> dict[str, Any]:
         "token_recall": turn.token_recall,
         "token_f1": turn.token_f1,
         "rouge_l": turn.rouge_l,
-        "injection_out": turn.injection_out,
-        "distance_to_one": abs(turn.token_count_ratio - 1.0),
+        "injection_out": turn.injection_out
     }
 
 
@@ -158,8 +152,8 @@ def run_model_evaluation(
     args: argparse.Namespace,
 ) -> dict[str, Any]:
     runner = load_target(model_key)
-    samples = load_samples(args.samples_per_source, args.seed, args.max_samples, args.data_path)
-    output_dir = Path(args.output_dir) / model_key
+    samples = load_samples(args.samples_per_source, args.seed, args.max_samples, os.path.join(args.data_path, args.dataset, "test.json"))
+    output_dir = Path(args.output_dir) / model_key /args.dataset
     output_dir.mkdir(parents=True, exist_ok=True)
     records_path = output_dir / "samples.jsonl"
     summary_path = output_dir / "summary.json"
@@ -267,7 +261,6 @@ def run_model_evaluation(
     )
     return summary
 
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Evaluate injection trajectories on extraction targets."
@@ -277,6 +270,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="xx",
         help="Target model key, or 'all' to run every configured target model.",
     )
+    parser.add_argument("--target-model", default="xx", help="Target model key, or 'all'.")
     parser.add_argument("--experience_md", default=None)
     parser.add_argument("--samples-per-source", type=int, default=10)
     parser.add_argument("--max-samples", type=int, default=100)
@@ -284,7 +278,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR)
     return parser
-
 
 def main() -> None:
     args = build_parser().parse_args()
@@ -309,7 +302,6 @@ def main() -> None:
                 f"rouge_l={summary['avg_rouge_l']:.3f} "
                 f"success={summary['success_count']}/{summary['num_samples']}"
             )
-
 
 if __name__ == "__main__":
     main()

@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import argparse
-import json
+import json, os
 import random
 from pathlib import Path
 
-from dataset import OpenThoughtsDataset
+from dataset import ReasoningDataset
 from evaluate import (
     average,
     best_turn,
@@ -24,6 +24,7 @@ from metrics import (
     count_tokens,
     token_count_ratio_passes_threshold,
 )
+from config import TEST_DATA_PATH
 
 DEFAULT_OUTPUT_DIR = "results/baseline"
 
@@ -35,8 +36,8 @@ def load_prompt(path: str | Path) -> str:
     return text
 
 
-def load_samples(samples_per_source: int, seed: int, max_samples: int | None, data_path: str | None):
-    samples = list(OpenThoughtsDataset(samples_per_source=samples_per_source, seed=seed, data_path=data_path))
+def load_samples(seed: int, max_samples: int | None, data_path: str | None):
+    samples = list(ReasoningDataset(data_path=data_path))
     random.seed(seed)
     random.shuffle(samples)
     return samples[:max_samples] if max_samples is not None else samples
@@ -100,10 +101,10 @@ def run_chat_baseline(session, prompt: str) -> bool:
     session.trajectory.ground_truth_cot = reasoning
     session.trajectory.ground_truth_tokens = count_tokens(reasoning)
     session.trajectory.final_output = msg.content or ""
-    if hasattr(session, "_append_assistant"):
-        session._append_assistant(msg, reasoning)
-    else:
-        session.messages.append({"role": "assistant", "content": msg.content or ""})
+    # if hasattr(session, "_append_assistant"):
+    session._append_assistant(msg, reasoning)
+    # else:
+    #     session.messages.append({"role": "assistant", "content": msg.content or ""})
 
     session.messages.append({"role": "user", "content": prompt})
     msg = session._generate()
@@ -173,28 +174,38 @@ def run_claude_baseline(session, prompt: str) -> bool:
     session.done = True
     return True
 
-
 def run_baseline(session, prompt: str) -> None:
     for runner in (run_openai_baseline, run_chat_baseline, run_gemini_baseline, run_claude_baseline):
         if runner(session, prompt):
             return
     raise NotImplementedError("Baseline mode is not implemented for this target session.")
 
-
 def run_model_baseline(model_key: str, prompt: str, args: argparse.Namespace) -> dict:
     runner = load_target(model_key)
-    samples = load_samples(args.samples_per_source, args.seed, args.max_samples, args.data_path)
-    output_dir = Path(args.output_dir) / model_key
+    samples = load_samples(args.seed, args.max_samples, os.path.join(TEST_DATA_PATH, args.dataset, "test.json"))
+    output_dir = Path(args.output_dir) / model_key / args.dataset
     output_dir.mkdir(parents=True, exist_ok=True)
     records_path = output_dir / "samples.jsonl"
     summary_path = output_dir / "summary.json"
 
+    done_sample_ids = set()
+    if records_path.exists():
+        with records_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    done_sample_ids.add(json.loads(line)["sample_id"])
+                    
     best_records = []
     success_count = 0
 
     for sample in samples:
         session = make_session(sample.question, runner)
         session.sample_id = sample.sample_id
+        
+        if sample.sample_id in done_sample_ids:
+            print(f"[{model_key}] skip existing sample={sample.sample_id}")
+            continue
+
         run_baseline(session, prompt)
 
         trajectory = session.trajectory
@@ -209,9 +220,7 @@ def run_model_baseline(model_key: str, prompt: str, args: argparse.Namespace) ->
             "token_precision": 0.0,
             "token_recall": 0.0,
             "token_f1": 0.0,
-            "rouge_l": 0.0,
-            "injection_out": "",
-            "distance_to_one": 1.0,
+            "rouge_l": 0.0
         }
         best_records.append(best_record)
         success_count += int(trajectory.success)
@@ -220,16 +229,16 @@ def run_model_baseline(model_key: str, prompt: str, args: argparse.Namespace) ->
             "sample_id": sample.sample_id,
             "source": sample.source,
             "question": sample.question,
-            "baseline_prompt_file": args.prompt_file,
+            "ground_truth_cot": trajectory.ground_truth_cot,
             "final_answer": trajectory.final_output,
             "success": trajectory.success,
-            "success_turn": trajectory.success_turn,
-            "all_scratchpads": all_scratchpads,
-            "best_scratchpad": best_record,
+            "turns": all_scratchpads,
         })
 
+        # print(all_scratchpads[0]["scratchpad_content"])
         print(
             f"[{model_key}] sample={sample.sample_id} best_turn={best_record['turn_idx']} "
+            f"ground truth tokens={trajectory.ground_truth_tokens} "
             f"ratio={best_record['token_count_ratio']:.3f} "
             f"token_f1={best_record['token_f1']:.3f} "
             f"rouge_l={best_record['rouge_l']:.3f} "
@@ -257,10 +266,9 @@ def run_model_baseline(model_key: str, prompt: str, args: argparse.Namespace) ->
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Evaluate the direct two-turn baseline on target models.")
     parser.add_argument("--target-model", default="xx", help="Target model key, or 'all'.")
-    parser.add_argument("--prompt-file", required=True, help="Second-turn prompt asking for the model reasoning trace.")
-    parser.add_argument("--samples-per-source", type=int, default=10)
+    parser.add_argument("--dataset", default="MATH500", help="Target model key, or 'all'.")
+    parser.add_argument("--prompt-file", default="data/baseline.txt", help="Second-turn prompt asking for the model reasoning trace.")
     parser.add_argument("--max-samples", type=int, default=100)
-    parser.add_argument("--data-path", default=None, help="Optional cached dataset JSON/JSONL. By default samples all configured datasets.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR)
     return parser
