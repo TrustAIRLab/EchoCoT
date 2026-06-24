@@ -1,29 +1,26 @@
 """Metrics and trajectory data structures."""
 
-import re
+import re, os
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Dict
 
-from config import RATIO_LOWER_BOUND, RATIO_UPPER_BOUND, TOKEN_RECALL_LOWER_BOUND, TOKEN_RECALL_UPPER_BOUND
+from config import RATIO_LOWER_BOUND, RATIO_UPPER_BOUND, TOKEN_RECALL_LOWER_BOUND, TOKEN_RECALL_UPPER_BOUND, SUMMARY_MODEL, SUMMARY_PROMPT_FILE
 
-try:
-    from rouge_score import rouge_scorer
-except Exception:
-    rouge_scorer = None
+from rouge_score import rouge_scorer
 
-try:
-    import tiktoken
+import tiktoken
 
-    _ENC = tiktoken.get_encoding("cl100k_base")
-except Exception:
-    _ENC = None
+_ENC = tiktoken.get_encoding("cl100k_base")
+from openai import OpenAI
 
+from typing import Sequence
+
+Score = Sequence[float]
 
 def _tokenize_words(text: str) -> list:
     """Split into lowercase word tokens."""
     return re.findall(r"[a-zA-Z0-9]+", text.lower())
-
 
 def count_tokens(text: str) -> int:
     """Model-agnostic token count with a word-count fallback."""
@@ -42,15 +39,9 @@ def _metric_token_ids(text: str) -> list:
         return _ENC.encode(text)
     return _tokenize_words(text)
 
-
-def compute_token_count_ratio(scratchpad_tokens: int, gt_tokens: int) -> float:
-    """Length ratio: extracted scratchpad tokens divided by ground-truth tokens."""
-    return compute_length_metrics(scratchpad_tokens, gt_tokens)["token_count_ratio"]
-
-
 def compute_length_error(token_count_ratio: float) -> float:
     """Absolute distance between the token_count_ratio and the ideal value 1.0."""
-    return abs(token_count_ratio - 1.0)
+    return round(abs(token_count_ratio - 1.0), 3)
 
 
 def compute_length_metrics(scratchpad_tokens: int, gt_tokens: int) -> Dict[str, float]:
@@ -84,22 +75,22 @@ def _best_ratios_by_sample(ratio_matrix: list[list[float]]) -> list[float]:
     return best_ratios
 
 
-def calculate_frac_in_target(ratio_matrix: list[list[float]]) -> float:
-    best_ratios = _best_ratios_by_sample(ratio_matrix)
-    if not best_ratios:
-        return 0.0
-    n_in_target = sum(
-        RATIO_LOWER_BOUND <= ratio <= RATIO_UPPER_BOUND
-        for ratio in best_ratios
-    )
-    return n_in_target / len(best_ratios)
+# def calculate_frac_in_target(ratio_matrix: list[list[float]]) -> float:
+#     best_ratios = _best_ratios_by_sample(ratio_matrix)
+#     if not best_ratios:
+#         return 0.0
+#     n_in_target = sum(
+#         RATIO_LOWER_BOUND <= ratio <= RATIO_UPPER_BOUND
+#         for ratio in best_ratios
+#     )
+#     return n_in_target / len(best_ratios)
 
 
-def calculate_mean_error_distance(ratio_matrix: list[list[float]]) -> float:
-    best_ratios = _best_ratios_by_sample(ratio_matrix)
-    if not best_ratios:
-        return 0.0
-    return sum(compute_length_error(ratio) for ratio in best_ratios) / len(best_ratios)
+# def calculate_mean_error_distance(ratio_matrix: list[list[float]]) -> float:
+#     best_ratios = _best_ratios_by_sample(ratio_matrix)
+#     if not best_ratios:
+#         return 0.0
+#     return sum(compute_length_error(ratio) for ratio in best_ratios) / len(best_ratios)
 
 
 # ---------------------------------------------------------------------------
@@ -116,19 +107,18 @@ def compute_token_overlap_counts(recon_tokens: list, gt_tokens: list) -> int:
         for token in recon_counter.keys() & gt_counter.keys()
     )
 
-
 def compute_token_precision(recon_tokens: list, gt_tokens: list) -> float:
     """Token Precision = overlap_tokens / extracted_tokens."""
     if not recon_tokens:
         return 0.0
-    return compute_token_overlap_counts(recon_tokens, gt_tokens) / len(recon_tokens)
+    return round(compute_token_overlap_counts(recon_tokens, gt_tokens) / len(recon_tokens), 3)
 
 
 def compute_token_recall(recon_tokens: list, gt_tokens: list) -> float:
     """Token Recall = overlap_tokens / reference_tokens."""
     if not gt_tokens:
         return 0.0
-    return compute_token_overlap_counts(recon_tokens, gt_tokens) / len(gt_tokens)
+    return round(compute_token_overlap_counts(recon_tokens, gt_tokens) / len(gt_tokens), 3)
 
 
 def token_recall(reference: str, candidate: str) -> float:
@@ -137,7 +127,7 @@ def token_recall(reference: str, candidate: str) -> float:
     if not reference_vocab:
         return 0.0
     candidate_vocab = set(_tokenize_words(candidate))
-    return len(reference_vocab & candidate_vocab) / len(reference_vocab)
+    return round(len(reference_vocab & candidate_vocab) / len(reference_vocab),3)
 
 
 def token_recall_passes_threshold(value: float) -> bool:
@@ -149,7 +139,7 @@ def compute_token_f1(token_precision: float, token_recall: float) -> float:
     """Token F1 = harmonic mean of Token Precision and Token Recall."""
     if token_precision + token_recall == 0:
         return 0.0
-    return 2 * token_precision * token_recall / (token_precision + token_recall)
+    return round(2 * token_precision * token_recall / (token_precision + token_recall),3)
 
 
 def compute_rouge_l(reconstructed: str, ground_truth: str) -> float:
@@ -158,7 +148,7 @@ def compute_rouge_l(reconstructed: str, ground_truth: str) -> float:
         return 0.0
     scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
     scores = scorer.score(target=ground_truth, prediction=reconstructed)
-    return scores["rougeL"].fmeasure
+    return round(scores["rougeL"].fmeasure,3)
 
 
 def compute_rouge_l_recall(reconstructed: str, reference: str) -> float:
@@ -167,7 +157,7 @@ def compute_rouge_l_recall(reconstructed: str, reference: str) -> float:
         return 0.0
     scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
     scores = scorer.score(target=reference, prediction=reconstructed)
-    return scores["rougeL"].recall
+    return round(scores["rougeL"].recall,3)
 
 
 def _compute_lexical_metrics_from_tokens(
@@ -187,7 +177,6 @@ def _compute_lexical_metrics_from_tokens(
         "rouge_l": compute_rouge_l(reconstructed, ground_truth),
     }
 
-
 def compute_lexical_metrics(reconstructed: str, ground_truth: str) -> Dict[str, float]:
     """Token precision/recall/F1 and ROUGE-L against ground-truth reasoning."""
     return _compute_lexical_metrics_from_tokens(
@@ -196,7 +185,6 @@ def compute_lexical_metrics(reconstructed: str, ground_truth: str) -> Dict[str, 
         reconstructed,
         ground_truth,
     )
-
 
 def compute_eval_metrics(reconstructed: str, ground_truth: str) -> Dict[str, float]:
     """Consistent evaluation metrics, tokenizing each text only once."""
@@ -211,14 +199,14 @@ def compute_eval_metrics(reconstructed: str, ground_truth: str) -> Dict[str, flo
             ground_truth,
         )
     )
+    composite_score = metrics["token_recall"] / (1 + metrics["length_error"])
+    metrics.update({"composite_score": composite_score})
     return metrics
-
 
 def compute_metrics_full(reconstructed: str, ground_truth: str) -> Dict[str, float]:
     """Rounded full metrics used by downstream analysis scripts."""
     metrics = compute_eval_metrics(reconstructed, ground_truth)
     return {key: round(value, 3) for key, value in metrics.items()}
-
 
 def compute_lexical_metrics_summary(
     reconstructed: str,
@@ -237,7 +225,6 @@ def compute_lexical_metrics_summary(
         "token_f1": token_f1,
     }
 
-
 def is_successful_extraction(
     metrics: Dict[str, float],
     ratio_lower_bound: float = 0.8,
@@ -255,22 +242,19 @@ def is_successful_extraction(
 # Trajectory data structures
 # ---------------------------------------------------------------------------
 
-
 @dataclass
 class InjectionTurn:
     turn_idx: int
     cot: str
     scratchpad_in: str
     scratchpad_in_tokens: int
-    token_count_ratio: float = 0.0
     length_error: float = 0.0
-    token_precision: float = 0.0
-    token_recall: float = 0.0
+    summary_token_recall: float = 0.0
+    composite_score: float = 0.0
+    token_count_ratio: float = 0.0
     token_f1: float = 0.0
     rouge_l: float = 0.0
     injection_out: str = ""
-    cot_summary: str = ""
-    summary_token_recall: float = 0.0
     stopped: bool = False
 
 
@@ -278,28 +262,32 @@ class InjectionTurn:
 class TrajectoryResult:
     turns: list = field(default_factory=list)
     ground_truth_cot: str = ""      # first-turn thinking (kept for eval, never shown to optimizer)
-    cot_summary: str = ""           # concise summary used only in summary-feedback mode
+    ground_truth_cot_summary: str = ""           # concise summary used only in summary-feedback mode
     ground_truth_tokens: int = 0
     final_output: str = ""
     success: bool = False           # system in-range state for token_count_ratio
     success_turn: int = -1          # first turn that succeeded (-1 = never)
+ 
+    # @property
+    # def final_scratchpad(self) -> str:
+    #     return self.turns[-1].scratchpad_in if self.turns else ""
+
+    # @property
+    # def final_scratchpad_tokens(self) -> int:
+    #     return self.turns[-1].scratchpad_in_tokens if self.turns else 0
+
+    # @property
+    # def final_token_count_ratio(self) -> float:
+    #     return self.turns[-1].token_count_ratio if self.turns else 0.0
+
+    # @property
+    # def final_length_error(self) -> float:
+    #     return self.turns[-1].length_error if self.turns else 0.0
 
     @property
-    def final_scratchpad(self) -> str:
-        return self.turns[-1].scratchpad_in if self.turns else ""
-
-    @property
-    def final_scratchpad_tokens(self) -> int:
-        return self.turns[-1].scratchpad_in_tokens if self.turns else 0
-
-    @property
-    def final_token_count_ratio(self) -> float:
-        return self.turns[-1].token_count_ratio if self.turns else 0.0
-
-    @property
-    def final_length_error(self) -> float:
-        return self.turns[-1].length_error if self.turns else 0.0
-
+    def final_scores(self) -> float:
+        return (self.turns[-1].length_error, self.turns[-1].summary_token_recall, self.turns[-1].composite_score)
+    
     @property
     def best_token_count_ratio(self) -> float:
         ratios = [
@@ -334,22 +322,144 @@ class TrajectoryResult:
         return "\n\n".join(lines)
 
 
-def trajectory_hits_target(trajectory: TrajectoryResult) -> bool:
-    """Return True if any turn in the trajectory is within configured bounds."""
-    return any(token_count_ratio_passes_threshold(t.token_count_ratio) for t in trajectory.turns)
+# def trajectory_hits_target(trajectory: TrajectoryResult) -> bool:
+#     """Return True if any turn in the trajectory is within configured bounds."""
+#     return any(token_count_ratio_passes_threshold(t.token_count_ratio) for t in trajectory.turns)
 
 
-def trajectory_hits_summary_feedback_target(trajectory: TrajectoryResult) -> bool:
-    """Return True if any turn passes both length and summary-recall bounds."""
-    return any(
-        token_count_ratio_passes_threshold(t.token_count_ratio)
-        and token_recall_passes_threshold(t.summary_token_recall)
-        for t in trajectory.turns
+# def trajectory_hits_summary_feedback_target(trajectory: TrajectoryResult) -> bool:
+#     """Return True if any turn passes both length and summary-recall bounds."""
+#     return any(
+#         token_count_ratio_passes_threshold(t.token_count_ratio)
+#         and token_recall_passes_threshold(t.summary_token_recall)
+#         for t in trajectory.turns
+#     )
+
+
+# def frac_trajectories_in_target(trajectories: list[TrajectoryResult]) -> float:
+#     """Fraction of trajectories with at least one turn in the target range."""
+#     if not trajectories:
+#         return 0.0
+#     return sum(1 for tr in trajectories if trajectory_hits_target(tr)) / len(trajectories)
+
+
+with open(SUMMARY_PROMPT_FILE, "r", encoding="utf-8") as f:
+    summarization_prompt = f.read()
+    
+def summarize_cot(ground_truth_cot: str) -> str:
+    """Generate a concise reference summary of the ground-truth CoT."""
+    if not ground_truth_cot:
+        return ""
+    summary_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    response = summary_client.chat.completions.create(
+        model=SUMMARY_MODEL,
+        messages=[
+            {"role": "system", "content": summarization_prompt},
+            {"role": "user", "content": ground_truth_cot},
+        ],
+        temperature=0,
+    )
+    return (response.choices[0].message.content or "").strip()
+
+
+
+def format_score_table(
+    sample_ids: list[str],
+    ratio_matrix: list[list[Score]],
+) -> str:
+    
+    def _format_score(score: Score) -> str:
+        return f"({score[0]:.3f}, {score[1]:.3f}, {score[2]:.3f})"
+
+    headers = [""] + sample_ids
+    rows = [
+        " | ".join(headers),
+        " | ".join(["---"] * len(headers)),
+    ]
+
+    for turn_idx, row in enumerate(ratio_matrix):
+        vals = [
+            _format_score(row[i]) if i < len(row) else ""
+            for i in range(len(sample_ids))
+        ]
+        rows.append(" | ".join([f"turn_{turn_idx}"] + vals))
+
+    return "\n".join(rows)
+
+
+def get_best_turn_scores(
+    sample_ids: list[str],
+    ratio_matrix: list[list[Score]],
+):
+    best_turns = []
+    best_scores = []
+
+    for i in range(len(sample_ids)):
+        candidates = [
+            (turn_idx, row[i])
+            for turn_idx, row in enumerate(ratio_matrix)
+            if i < len(row)
+        ]
+
+        if candidates:
+            best_turn, best_score = max(candidates, key=lambda x: x[1][2])
+            best_turns.append(best_turn)
+            best_scores.append(best_score)
+        else:
+            best_turns.append(None)
+            best_scores.append(None)
+
+    return best_turns, best_scores
+
+
+def calculate_mean_matrix(best_scores: list[Score | None]):
+    valid_scores = [s for s in best_scores if s is not None]
+
+    if not valid_scores:
+        return None
+
+    return tuple(
+        round(sum(s[i] for s in valid_scores) / len(valid_scores),3)
+        for i in range(3)
     )
 
+def format_best_turn_table(
+    sample_ids: list[str],
+    best_turns: list[int | None],
+    best_scores: list[Score | None],
+) -> str:
+    headers = [""] + sample_ids
+    rows = [
+        " | ".join(headers),
+        " | ".join(["---"] * len(headers)),
+    ]
 
-def frac_trajectories_in_target(trajectories: list[TrajectoryResult]) -> float:
-    """Fraction of trajectories with at least one turn in the target range."""
-    if not trajectories:
-        return 0.0
-    return sum(1 for tr in trajectories if trajectory_hits_target(tr)) / len(trajectories)
+    rows.append(
+        " | ".join(
+            ["best_turn"]
+            + [f"turn_{t}" if t is not None else "" for t in best_turns]
+        )
+    )
+
+    rows.append(
+        " | ".join(
+            ["length_error_best_turn"]
+            + [f"{s[0]:.3f}" if s is not None else "" for s in best_scores]
+        )
+    )
+
+    rows.append(
+        " | ".join(
+            ["token_recall_best_turn"]
+            + [f"{s[1]:.3f}" if s is not None else "" for s in best_scores]
+        )
+    )
+
+    rows.append(
+        " | ".join(
+            ["composite_score_best_turn"]
+            + [f"{s[2]:.3f}" if s is not None else "" for s in best_scores]
+        )
+    )
+
+    return "\n".join(rows)

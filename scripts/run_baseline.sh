@@ -1,5 +1,5 @@
 DIR=/Users/yitingqu/Desktop/Experiments/CoTRecon
-model=deepseek-v4-flash
+model=qwen3.5-plus
 
 for dataset in OpenThoughts MATH500 JEEBench LiveCodeBench
 do

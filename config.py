@@ -219,6 +219,11 @@ RATIO_UPPER_BOUND = 1.10
 # CoT-summary feedback mode target range for summary token recall
 TOKEN_RECALL_LOWER_BOUND = 0.50
 TOKEN_RECALL_UPPER_BOUND = 1.00
+
+WORKFLOW_MODE = "length_lexical" # or length_only
+SUMMARY_MODEL = "gpt-4.1-mini"
+
+
 # After first success, allow this many extra turns for improvement
 EXTRA_TURNS_AFTER_SUCCESS = 0
 
@@ -233,3 +238,4 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(_HERE, "data")
 TEST_DATA_PATH = os.path.join(_HERE, "data")
 OUTPUT_DIR = os.path.join(_HERE, "results")
+SUMMARY_PROMPT_FILE = os.path.join(_HERE, "data/summarize_prompt.txt")

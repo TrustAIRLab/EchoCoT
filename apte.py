@@ -9,10 +9,10 @@ from config import (
     MAX_INJECTION_TURNS,
     RATIO_LOWER_BOUND,
     RATIO_UPPER_BOUND,
+    WORKFLOW_MODE,
     TOKEN_RECALL_LOWER_BOUND,
     TOKEN_RECALL_UPPER_BOUND,
 )
-from metrics import calculate_frac_in_target, calculate_mean_error_distance, compute_lexical_metrics_summary
 
 # Module-level state (set by main.py before use)
 client: OpenAI = None
@@ -20,8 +20,8 @@ model_id: str = ""
 api_type: str = "responses"     # "chat" or "responses"
 max_turns: int = MAX_INJECTION_TURNS
 prompt_module_name: str = "prompts"
-workflow_mode: str = "length_only"
-SUMMARY_MODEL = "gpt-4.1-mini"
+workflow_mode: str = WORKFLOW_MODE
+
 
 OPTIMIZER_SYSTEM_PROMPT = ""
 INJECT_BATCH_USER_TEMPLATE = ""
@@ -37,9 +37,7 @@ def _normalize_prompt_module(name: str) -> str:
         "prompts": "prompts",
         "prompts_cot": "prompts_cot",
         "prompts_cot_gpt": "prompts_cot_gpt",
-        "prompts_summary_feedback": "prompts_summary_feedback",
-        "prompts_cot_gpt_summary_feedback": "prompts_cot_gpt_summary_feedback",
-        "optimizer_summary_feedback": "prompts_summary_feedback",
+        "prompts_with_summary": "prompts_with_summary",
     }
     try:
         return aliases[name]
@@ -63,7 +61,6 @@ def _load_prompt_templates(module_name: str | None = None):
     REFLECT_BATCH_USER_TEMPLATE = prompts_module.REFLECT_BATCH_USER_TEMPLATE
     DISTILL_USER_TEMPLATE = prompts_module.DISTILL_USER_TEMPLATE
     INITIAL_EXPERIENCE_MD = prompts_module.INITIAL_EXPERIENCE_MD
-
 
 _load_prompt_templates()
 
@@ -95,83 +92,6 @@ def _call_api(messages: list) -> str:
 
     response = client.chat.completions.create(model=model_id, messages=messages)
     return (response.choices[0].message.content or "").strip()
-
-
-
-def summarize_cot(ground_truth_cot: str) -> str:
-    """Generate a concise reference summary of the ground-truth CoT."""
-    if not ground_truth_cot:
-        return ""
-    summary_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    response = summary_client.chat.completions.create(
-        model=SUMMARY_MODEL,
-        messages=[
-            {"role": "system", "content": "Summarize the key reasoning steps in the chain of thought concisely. Preserve important facts, operations, and decision points. Do not add new reasoning."},
-            {"role": "user", "content": ground_truth_cot},
-        ],
-        temperature=0,
-    )
-    return (response.choices[0].message.content or "").strip()
-
-
-def apply_summary_feedback_metrics(trajectories: list) -> None:
-    """Attach CoT summaries and summary-based lexical metrics to trajectories."""
-    if workflow_mode != "cot_summary_feedback":
-        return
-    for trajectory in trajectories:
-        if not trajectory.cot_summary:
-            trajectory.cot_summary = summarize_cot(trajectory.ground_truth_cot)
-        for turn in trajectory.turns:
-            lexical = compute_lexical_metrics_summary(turn.scratchpad_in, trajectory.cot_summary)
-            turn.cot_summary = trajectory.cot_summary
-            turn.summary_token_recall = lexical["token_recall"]
-            turn.token_recall = lexical["token_recall"]
-
-
-def _format_summary_feedback(trajectories: list | None) -> str:
-    if workflow_mode != "cot_summary_feedback" or not trajectories:
-        return ""
-    lines = ["Evaluation metrics (CoT-summary lexical feedback):"]
-    lines.append(f"Target range: {TOKEN_RECALL_LOWER_BOUND} <= token_recall <= {TOKEN_RECALL_UPPER_BOUND}")
-    for i, trajectory in enumerate(trajectories):
-        recall = trajectory.turns[-1].summary_token_recall if trajectory.turns else 0.0
-        summary = (trajectory.cot_summary or "")[:500]
-        lines.append(f"Sample {i+1}: token_recall={recall:.3f}; CoT summary: {summary}")
-    lines.append("token_recall measures how much of the CoT summary vocabulary is covered by the scratchpad content; raise it without adding filler or losing the token_count_ratio target.")
-    return "\n".join(lines)
-
-def _format_ratio_table(sample_ids: list[str], ratio_matrix: list[list[float]]) -> str:
-    n_samples = len(sample_ids)
-
-    headers = [""] + ["sample_"+str(i) for i in range(1, n_samples + 1)]
-    rows = [
-        " | ".join(headers),
-        " | ".join(["---"] * len(headers)),
-    ]
-
-    for turn_idx, row in enumerate(ratio_matrix):
-        vals = [
-            f"{row[sample_idx]:.3f}" if sample_idx < len(row) else ""
-            for sample_idx in range(n_samples)
-        ]
-        rows.append(" | ".join([f"turn_{turn_idx}"] + vals))
-
-    best_vals = []
-    for sample_idx in range(n_samples):
-        sample_ratios = [
-            row[sample_idx]
-            for row in ratio_matrix
-            if sample_idx < len(row)
-        ]
-
-        if sample_ratios:
-            best_ratio = min(sample_ratios, key=lambda x: abs(x - 1.0))
-            best_vals.append(f"{best_ratio:.3f}")
-        else:
-            best_vals.append("")
-
-    rows.append(" | ".join(["best_token_count_ratio"] + best_vals))
-    return "\n".join(rows)
 
 def _format_trajectory(injections: list[str]) -> str:
     if not injections:
@@ -207,8 +127,8 @@ class TrajectoryOptimizer:
     def _init_conversation(self):
         formatted = OPTIMIZER_SYSTEM_PROMPT.format(
             max_injection_turns=max_turns,
-            ratio_lower_bound=RATIO_LOWER_BOUND,
-            ratio_upper_bound=RATIO_UPPER_BOUND,
+            # ratio_lower_bound=RATIO_LOWER_BOUND,
+            # ratio_upper_bound=RATIO_UPPER_BOUND,
         )
         self.messages = [{"role": "system", "content": formatted}]
 
@@ -232,8 +152,8 @@ class TrajectoryOptimizer:
         """Generate one universal injection for the full minibatch."""
 
         per_sample_ratios_str = ""
-        for i, ratio in enumerate(per_sample_ratios):
-            per_sample_ratios_str += f"Sample {i+1}: token_count_ratio={ratio: .3f}\n"
+        for i, (length_error, token_recall, composite_score) in enumerate(per_sample_ratios):
+            per_sample_ratios_str += f"Sample {i+1}: length_error={length_error: .3f} token_recall={token_recall: .3f} composite_score={composite_score: .3f}\n"
 
         if turn_idx <=1:
             cot_preview = "No reaction yet, as the first injection hasn't been sent."
@@ -245,12 +165,6 @@ class TrajectoryOptimizer:
             cot_preview=cot_preview,
             per_sample_ratios=per_sample_ratios_str
         )
-        summary_feedback = _format_summary_feedback(trajectories)
-        if summary_feedback:
-            msg += "\n\n" + summary_feedback
-        # if self.best_trajectory:
-        #     msg += "\n\nBest universal trajectory so far:\n" + _format_trajectory(self.best_trajectory)
-        #     msg += f"\nBest performance: {self.best_perf}"
         injection = self._call(msg).strip()
         
         print("inject message:", msg)
@@ -260,22 +174,22 @@ class TrajectoryOptimizer:
     def _is_improved(current_perf, best_perf) -> bool:
         if best_perf is None:
             return True
-        current_frac = current_perf["frac_in_target"]
-        best_frac = best_perf["frac_in_target"]
+        current_frac = current_perf["mean_composite_score"]
+        best_frac = best_perf["mean_composite_score"]
         if current_frac > best_frac:
             return True
         if current_frac < best_frac:
             return False
-        current_error = current_perf["mean_error_distance"]
-        best_error = best_perf["mean_error_distance"]
+        current_error = current_perf["mean_length_error"]
+        best_error = best_perf["mean_length_error"]
         return current_error < best_error
 
-    def record_batch_trajectory(self, realized_trajectory: list[str], ratio_matrix: list[float],
-                                trajectories: list | None = None) -> bool:
+    def record_batch_trajectory(self, realized_trajectory: list[str], mean_ratio_matrix) -> bool:
         """Record current minibatch outcome and update global best if improved."""
         self.current_trajectory = list(realized_trajectory)
-        self.current_perf = {"frac_in_target": calculate_frac_in_target(ratio_matrix),
-                             "mean_error_distance": calculate_mean_error_distance(ratio_matrix)}
+        self.current_perf = {"mean_composite_score": mean_ratio_matrix[2],
+                             "mean_length_error": mean_ratio_matrix[0],
+                             "mean_token_recall": mean_ratio_matrix[1]}
 
         improved = self._is_improved(self.current_perf, self.best_perf)
         
@@ -285,37 +199,41 @@ class TrajectoryOptimizer:
         return improved
 
     def reflect_batch(self, trajectories: list, batch_idx: int, per_sample_ratios: list[float],
-                      ratio_matrix: list[list[float]], sample_ids: list[str],
-                      realized_trajectory: list[str],scratchpad_preview: str, 
+                      ratio_matrix_table: str,
+                      ratio_matrix_best_turn_table: str,
+                      mean_ratio_matrix: tuple,
+                      sample_ids: list[str],
+                      realized_trajectory: list[str],
+                      scratchpad_preview: str, 
                       cot_preview=str) -> str:
     
         per_sample_ratios_str = ""
-        for i, ratio in enumerate(per_sample_ratios):
-            per_sample_ratios_str += f"Sample {i+1}: token_count_ratio={ratio: .3f}\n"
+        for i, (length_error, token_recall, composite_score) in enumerate(per_sample_ratios):
+            per_sample_ratios_str += f"Sample {i+1}: length_error={length_error: .3f} token_recall={token_recall: .3f} composite_score={composite_score: .3f}\n"
 
-        frac_in_target = calculate_frac_in_target(ratio_matrix)
-        mean_error_distance = calculate_mean_error_distance(ratio_matrix)
+        # frac_in_target = calculate_frac_in_target(ratio_matrix)
+        # mean_error_distance = calculate_mean_error_distance(ratio_matrix)
+        
+
         msg = REFLECT_BATCH_USER_TEMPLATE.format(
             scratchpad_preview=scratchpad_preview,
             per_sample_ratios=per_sample_ratios_str,
             cot_preview=cot_preview,
             batch_idx=batch_idx,
-            frac_in_target=frac_in_target,
-            mean_error_distance=mean_error_distance,
-            ratio_matrix=_format_ratio_table(sample_ids, ratio_matrix),
+            # frac_in_target=frac_in_target,
+            # mean_error_distance=mean_error_distance,
+            ratio_matrix_table=ratio_matrix_table,
+            ratio_matrix_best_turn_table=ratio_matrix_best_turn_table,
+            mean_ratio_matrix=mean_ratio_matrix,
             realized_trajectory=realized_trajectory,
             best_perf=self.best_perf,
             current_perf=self.current_perf
         )
-        summary_feedback = _format_summary_feedback(trajectories)
-        if summary_feedback:
-            msg += "\n\n" + summary_feedback
-        
         print("reflect message:", msg)
         
         return self._call(msg)
 
-    def distill(self, batch_idx: int, ratios: list[float], overlaps: list[float],
+    def distill(self, batch_idx: int,
                 successes: list[bool], realized_trajectory: list[str] | None = None,
                 frac_in_target: float | None = None) -> str:
         """Rewrite experience.md with the latest universal-trajectory lessons."""
