@@ -1,7 +1,8 @@
 DIR=/Users/yitingqu/Documents/projects/CoTRecon
 # model=qwen3.5-plus
 # model=deepseek-v4-flash
-model=minimax-m3
+# model=minimax-m3
+model=glm-5.2
 optimizer_model=gemini-2.5-flash
 mode=length_only
 

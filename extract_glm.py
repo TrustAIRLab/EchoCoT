@@ -4,7 +4,6 @@ import json
 import os
 import re
 import time
-import httpx
 from openai import OpenAI
 
 from custom_tools import get_chat_tools
@@ -25,7 +24,7 @@ SYSTEM_PROMPT = (
 
 REARCHIVE_SUFFIX = "\n\nMandatory next step: call the scratchpad tool again now to archive reasoning."
 
-GLM_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/"
+GLM_BASE_URL = "https://api.z.ai/api/paas/v4/"
 REASONING_KEYS = (
     "reasoning_content",
     "reasoning_details",
@@ -82,24 +81,10 @@ def load_model(model_name: str, save_dir: str = ""):
             "for GLM target model"
         )
 
-    timeout = httpx.Timeout(
-        connect=30.0,
-        read=300.0,
-        write=30.0,
-        pool=30.0,
-    )
-
-    glm_http_client = httpx.Client(
-        timeout=timeout,
-        trust_env=False,  # GLM direct connection; ignore HTTP_PROXY / HTTPS_PROXY / ALL_PROXY
-    )
-
     _client = OpenAI(
         api_key=api_key,
         base_url=GLM_BASE_URL,
-        timeout=timeout,
         max_retries=2,
-        http_client=glm_http_client,
     )
 
     _model_id = model_name
@@ -194,7 +179,10 @@ def _assistant_message_dict(msg, reasoning: str) -> dict:
                 "type": tc.type,
                 "function": {
                     "name": tc.function.name,
-                    "arguments": tc.function.arguments,
+                    "arguments": json.dumps(
+                        safe_json_loads(tc.function.arguments or "{}"),
+                        ensure_ascii=False,
+                    ),
                 },
             }
             for tc in tool_calls
@@ -212,6 +200,26 @@ def _collect_scratchpad_content(tool_calls) -> str:
         scratchpad_content += str(tool_args.get("content", ""))
 
     return scratchpad_content
+
+
+class _StreamFunction:
+    def __init__(self, name: str = "", arguments: str = ""):
+        self.name = name
+        self.arguments = arguments
+
+
+class _StreamToolCall:
+    def __init__(self, tool_call_id: str, function: _StreamFunction):
+        self.id = tool_call_id
+        self.type = "function"
+        self.function = function
+
+
+class _StreamMessage:
+    def __init__(self, content: str, reasoning_content: str, tool_calls: list):
+        self.content = content
+        self.reasoning_content = reasoning_content
+        self.tool_calls = tool_calls
 
 
 class SampleSession:
@@ -276,17 +284,73 @@ class SampleSession:
             "tool_choice": "auto",
         }
 
-        extra_body = {}
-        if os.getenv("GLM_ENABLE_THINKING", "1") == "1":
-            extra_body["thinking"] = {"type": "enabled"}
+        extra_body = {
+            "thinking": {
+                "type": "enabled",
+                "clear_thinking": False,
+            }
+        }
 
         for attempt in range(3):
             try:
                 response = _client.chat.completions.create(
                     **request_kwargs,
+                    stream=True,
                     extra_body=extra_body,
                 )
-                return response.choices[0].message
+
+                reasoning = ""
+                content = ""
+                tool_calls = []
+
+                for chunk in response:
+                    if not chunk.choices:
+                        continue
+
+                    delta = chunk.choices[0].delta
+
+                    reasoning_delta = getattr(delta, "reasoning_content", None)
+                    if reasoning_delta:
+                        reasoning += reasoning_delta
+
+                    content_delta = getattr(delta, "content", None)
+                    if content_delta:
+                        content += content_delta
+
+                    for tc in getattr(delta, "tool_calls", None) or []:
+                        while tc.index >= len(tool_calls):
+                            tool_calls.append({
+                                "id": "",
+                                "function": {"name": "", "arguments": ""},
+                            })
+
+                        if getattr(tc, "id", None):
+                            tool_calls[tc.index]["id"] = tc.id
+
+                        function = getattr(tc, "function", None)
+                        if function is None:
+                            continue
+
+                        if getattr(function, "name", None):
+                            tool_calls[tc.index]["function"]["name"] = function.name
+
+                        if getattr(function, "arguments", None):
+                            tool_calls[tc.index]["function"]["arguments"] += function.arguments
+
+                return _StreamMessage(
+                    content=content,
+                    reasoning_content=reasoning,
+                    tool_calls=[
+                        _StreamToolCall(
+                            tool_call["id"],
+                            _StreamFunction(
+                                tool_call["function"]["name"],
+                                tool_call["function"]["arguments"],
+                            ),
+                        )
+                        for tool_call in tool_calls
+                    ],
+                )
 
             except Exception as e:
                 last_error = e
