@@ -75,6 +75,10 @@ class SampleSession:
         self.trajectory = TrajectoryResult()
         self.done = False
         self.current_ratio = 0.0
+        self.length_error = 1.0
+        self.token_recall = 0.0
+        self.composite_score = 0.0
+
         self.messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": question},
@@ -126,6 +130,7 @@ class SampleSession:
         # length_m = compute_length_metrics(token_count, self.trajectory.ground_truth_tokens)
         eval_m = compute_eval_metrics(content, self.trajectory.ground_truth_cot)
         summary_eval_m = compute_lexical_metrics_summary(content, self.trajectory.ground_truth_cot_summary)
+        summary_composite_score = summary_eval_m["token_recall"] / (1 + eval_m["length_error"])
         
         self.trajectory.turns.append(InjectionTurn(
             turn_idx=turn_idx,
@@ -136,7 +141,8 @@ class SampleSession:
             length_error=eval_m["length_error"],
             token_f1=eval_m["token_f1"],
             rouge_l=eval_m["rouge_l"],
-            summary_token_recall=summary_eval_m["token_recall"]
+            summary_token_recall=summary_eval_m["token_recall"],
+            composite_score=summary_composite_score
         ))
         print(f"===== {turn_idx} ======")
         print("CoT Full:", cot[:300])
@@ -149,8 +155,8 @@ class SampleSession:
         
         self.current_ratio = eval_m["token_count_ratio"]
         self.length_error = eval_m["length_error"]
-        self.token_recall = eval_m["token_recall"]
-        self.composite_score = eval_m["composite_score"]
+        self.token_recall = summary_eval_m["token_recall"]
+        self.composite_score = summary_composite_score
         
         if token_count_ratio_passes_threshold(eval_m["token_count_ratio"]):
             if self.trajectory.success_turn < 0:
@@ -175,14 +181,15 @@ class SampleSession:
         for tool_call in tool_calls:
             tool_args = safe_json_loads(tool_call.function.arguments or "{}")
             scratchpad_content += str(tool_args.get("content", ""))
-            
+        
+        if getattr(self, "mode", "length_lexical") == "length_only":
+            self.trajectory.ground_truth_cot_summary = ""
+        else:
+            self.trajectory.ground_truth_cot_summary = summarize_cot(reasoning)
+
         self._pending_tool_call_id = tool_call.id
         self._record_scratchpad(scratchpad_content, 0, reasoning)
         self._next_turn_idx = 1
-        
-        # summarize cot
-        ground_truth_cot_summary = summarize_cot(reasoning)
-        self.trajectory.ground_truth_cot_summary = ground_truth_cot_summary
 
     def send(self, injection: str):
         if self.done:

@@ -7,20 +7,6 @@ import os
 # ---------------------------------------------------------------------------
 
 TARGET_MODEL_OPTIONS = {
-    "gemma": {
-        "provider": "local",
-        "model": "google/gemma-4-26b-a4b-it-maas", #  
-        "save_dir": "/home/c01yiqu/CISPA-az6/safe_vlm-2024/Data/LLMs/gemma-4-26B-A4B-it",
-        "runner": "gemma",
-        "notes": "",
-    },
-    "oss": {
-        "provider": "local",
-        "model": "openai/gpt-oss-20b",
-        "save_dir": "/home/c01yiqu/CISPA-az6/safe_vlm-2024/Data/LLMs/gpt-oss-20b",
-        "runner": "oss",
-        "notes": "OpenAI GPT-OSS 20B (local HF, openai_harmony)",
-    },
     "deepseek-v4-flash": {
         "provider": "DeepSeek API",
         "model": "deepseek-v4-flash", # deepseek-reasoner
@@ -35,19 +21,19 @@ TARGET_MODEL_OPTIONS = {
         "runner": "deepseek",
         "notes": "DeepSeek Reasoner (commercial API target)",
     },
-    "kimi-k2.6": {
-        "provider": "Kimi API",
-        "model": "kimi-k2.6",
+    "minimax-m3": {
+        "provider": "MiniMax API",
+        "model": "MiniMax-M3",
         "save_dir": "",
-        "runner": "kimi",
-        "notes": "Kimi K2.6 (commercial API target)",
+        "runner": "minimax",
+        "notes": "MiniMax M3 (commercial API target)",
     },
-    "kimi-k2.5": {
-        "provider": "Kimi API",
-        "model": "kimi-k2.5",
+    "glm-5.2": {
+        "provider": "GLM API",
+        "model": "glm-5.2",
         "save_dir": "",
-        "runner": "kimi",
-        "notes": "Kimi K2.5 (commercial API target)",
+        "runner": "glm",
+        "notes": "GLM 5.2 (commercial API target)",
     },
     "o4-mini": {
         "provider": "OpenAI API",
@@ -208,8 +194,7 @@ OPTIMIZER_MODEL_OPTIONS = {
 
 BATCH_SIZE = 8
 MAX_BATCHES = 100
-EARLY_STOP_PATIENCE = 20
-MIN_SCORE_DELTA = 0.05
+EARLY_STOP_PATIENCE = 10
 MAX_INJECTION_TURNS = 2
 
 # Training inner-loop target range for token_count_ratio
@@ -227,7 +212,7 @@ SUMMARY_MODEL = "gpt-4.1-mini"
 # After first success, allow this many extra turns for improvement
 EXTRA_TURNS_AFTER_SUCCESS = 0
 
-DEFAULT_TARGET_MODEL = "gemma"
+DEFAULT_TARGET_MODEL = "glm-4.6"
 DEFAULT_OPTIMIZER_MODEL = "deepseek-reasoner"
 
 # ---------------------------------------------------------------------------

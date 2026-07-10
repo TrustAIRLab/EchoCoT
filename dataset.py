@@ -4,30 +4,38 @@ from __future__ import annotations
 
 import json
 import random
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, DefaultDict, Dict, Iterator, List, Optional
 
-from datasets import load_dataset
+try:
+    from datasets import load_dataset
+except ImportError:
+    load_dataset = None
 
 
 DATASETS = [
+    {
+        "name": "OpenThoughts",
+        "path": "open-thoughts/OpenThoughts-114k",
+        "subset": "metadata",
+        "split": "train",
+        "source_balanced": True,
+        "samples_per_source": 100,
+        "train_per_source": 60,
+        "expected_sources": 9,
+    },
     # {
-    #     "name": "OpenThoughts",
-    #     "path": "open-thoughts/OpenThoughts-114k",
-    #     "subset": "metadata",
-    #     "split": "train",
+    #     "name": "MATH500",
+    #     "path": "HuggingFaceH4/MATH-500",
+    #     "split": "test",
     # },
-    {
-        "name": "MATH500",
-        "path": "HuggingFaceH4/MATH-500",
-        "split": "test",
-    },
-    {
-        "name": "JEEBench",
-        "path": "daman1209arora/jeebench",
-        "split": "test",
-    },
+    # {
+    #     "name": "JEEBench",
+    #     "path": "daman1209arora/jeebench",
+    #     "split": "test",
+    # },
     {
         "name": "LiveCodeBench",
         "path": "livecodebench/code_generation_lite",
@@ -40,6 +48,7 @@ DATASETS = [
 ]
 
 TRAIN_RATIO = 0.6
+DEFAULT_SEED = 42
 
 
 @dataclass
@@ -54,7 +63,7 @@ class DatasetSample:
     starter_code: Any = None
 
     def to_dict(self) -> Dict[str, Any]:
-        item = {
+        return {
             "sample_id": self.sample_id,
             "question": self.question,
             "answer": self.answer,
@@ -62,14 +71,6 @@ class DatasetSample:
             "domain": self.domain,
             "dataset_system": self.dataset_system,
         }
-
-        if self.test_cases is not None:
-            item["test_cases"] = self.test_cases
-
-        if self.starter_code is not None:
-            item["starter_code"] = self.starter_code
-
-        return item
 
     @classmethod
     def from_dict(cls, item: Dict[str, Any]) -> "DatasetSample":
@@ -111,10 +112,11 @@ class OpenThoughtsDataset:
         if self.data_path and self.data_path.exists():
             return load_json(self.data_path)
 
-        split_data = build_train_test_json(
-            open_thoughts_samples=self.open_thoughts_samples,
-            seed=self.seed,
-        )
+        spec = dict(get_dataset_spec("OpenThoughts"))
+        spec["samples_per_source"] = self.open_thoughts_samples
+        spec["train_per_source"] = int(self.open_thoughts_samples * TRAIN_RATIO)
+
+        split_data = build_train_test_json(seed=self.seed, spec=spec)
 
         if self.data_path:
             name = self.data_path.stem.lower()
@@ -144,9 +146,20 @@ def load_samples(
     ).samples
 
 
-def build_train_test_json(seed: int, spec) -> Dict[str, List[DatasetSample]]:
-    train_samples = []
-    test_samples = []
+def get_dataset_spec(name: str) -> Dict[str, Any]:
+    for spec in DATASETS:
+        if spec["name"] == name:
+            return spec
+
+    raise ValueError(f"Unknown dataset: {name}")
+
+
+def build_train_test_json(seed: int, spec: Dict[str, Any]) -> Dict[str, List[DatasetSample]]:
+    if load_dataset is None:
+        raise ImportError(
+            "The 'datasets' package is required to download and build datasets. "
+            "Install it with `pip install datasets`."
+        )
 
     dataset_name = spec["name"]
     print(f"Loading {dataset_name}...")
@@ -164,7 +177,6 @@ def build_train_test_json(seed: int, spec) -> Dict[str, List[DatasetSample]]:
     samples = []
 
     for index, record in enumerate(dataset):
-
         record = dict(record)
 
         try:
@@ -172,15 +184,15 @@ def build_train_test_json(seed: int, spec) -> Dict[str, List[DatasetSample]]:
         except Exception as e:
             print(f"Skip bad sample from {dataset_name}: {e}")
 
-    random.seed(seed)
-    random.shuffle(samples)
+    if spec.get("source_balanced"):
+        train_samples, test_samples = split_by_source(samples, seed, spec)
+    else:
+        train_samples, test_samples = split_globally(samples, seed)
 
-    split_index = int(len(samples) * TRAIN_RATIO)
-
-    train_samples.extend(samples[:split_index])
-    test_samples.extend(samples[split_index:])
-
-    print(f"{dataset_name}: total={len(samples)}, train={split_index}, test={len(samples) - split_index}")
+    print(
+        f"{dataset_name}: total={len(samples)}, "
+        f"train={len(train_samples)}, test={len(test_samples)}"
+    )
 
     train_samples.sort(key=lambda x: (x.source, x.sample_id))
     test_samples.sort(key=lambda x: (x.source, x.sample_id))
@@ -189,6 +201,71 @@ def build_train_test_json(seed: int, spec) -> Dict[str, List[DatasetSample]]:
         "train": train_samples,
         "test": test_samples,
     }
+
+
+def split_globally(
+    samples: List[DatasetSample],
+    seed: int,
+) -> tuple[List[DatasetSample], List[DatasetSample]]:
+    rng = random.Random(seed)
+    shuffled = list(samples)
+    rng.shuffle(shuffled)
+
+    split_index = int(len(shuffled) * TRAIN_RATIO)
+    return shuffled[:split_index], shuffled[split_index:]
+
+
+def split_by_source(
+    samples: List[DatasetSample],
+    seed: int,
+    spec: Dict[str, Any],
+) -> tuple[List[DatasetSample], List[DatasetSample]]:
+    samples_per_source = int(spec["samples_per_source"])
+    train_per_source = int(spec["train_per_source"])
+    test_per_source = samples_per_source - train_per_source
+
+    if train_per_source < 0 or test_per_source < 0:
+        raise ValueError(
+            f"Invalid split for {spec['name']}: "
+            f"samples_per_source={samples_per_source}, "
+            f"train_per_source={train_per_source}"
+        )
+
+    samples_by_source: DefaultDict[str, List[DatasetSample]] = defaultdict(list)
+    for sample in samples:
+        samples_by_source[sample.source or "unknown"].append(sample)
+
+    expected_sources = spec.get("expected_sources")
+    if expected_sources is not None and len(samples_by_source) != int(expected_sources):
+        print(
+            f"Warning: expected {expected_sources} sources in {spec['name']}, "
+            f"found {len(samples_by_source)}: {sorted(samples_by_source)}"
+        )
+
+    rng = random.Random(seed)
+    train_samples: List[DatasetSample] = []
+    test_samples: List[DatasetSample] = []
+
+    for source in sorted(samples_by_source):
+        source_samples = list(samples_by_source[source])
+        rng.shuffle(source_samples)
+
+        if len(source_samples) < samples_per_source:
+            raise ValueError(
+                f"{spec['name']} source {source!r} only has {len(source_samples)} "
+                f"samples; need {samples_per_source}."
+            )
+
+        selected = source_samples[:samples_per_source]
+        train_samples.extend(selected[:train_per_source])
+        test_samples.extend(selected[train_per_source:samples_per_source])
+
+        print(
+            f"{spec['name']}[{source}]: total={len(source_samples)}, "
+            f"sampled={len(selected)}, train={train_per_source}, test={test_per_source}"
+        )
+
+    return train_samples, test_samples
 
 
 def normalize_sample(record: Dict[str, Any], index: int) -> DatasetSample:
@@ -314,40 +391,6 @@ def write_json(path: Path, samples: List[DatasetSample]) -> None:
     )
 
 
-# def main() -> None:
-    
-#     for spec in DATASETS:
-#         dataset_name = spec["name"]
-        
-#         data_dir = Path(f"data/{dataset_name}")
-#         data_dir.mkdir(parents=True, exist_ok=True)
-
-#         open_thoughts_samples = 100
-#         seed = 42
-
-#         train_path = data_dir / "train.json"
-#         test_path = data_dir / "test.json"
-
-#         split_data = build_train_test_json(
-#             open_thoughts_samples=open_thoughts_samples,
-#             seed=seed,
-#             spec=spec
-#         )
-
-#         write_json(train_path, split_data["train"])
-#         write_json(test_path, split_data["test"])
-
-#         json_files = sorted(data_dir.glob("*.json"))
-
-#         print("\nAll json files:")
-#         for path in json_files:
-#             print(path)
-
-
-# if __name__ == "__main__":
-#     main()
-
-
 class ReasoningDataset:
     def __init__(
         self,
@@ -376,3 +419,34 @@ class ReasoningDataset:
             raise ValueError(f"Only .json dataset files are supported: {self.data_path}")
 
         return load_json(self.data_path)
+
+
+# def main() -> None:
+#     seed = DEFAULT_SEED
+
+#     for spec in DATASETS:
+#         dataset_name = spec["name"]
+
+#         data_dir = Path(f"data/{dataset_name}")
+#         data_dir.mkdir(parents=True, exist_ok=True)
+
+#         train_path = data_dir / "train.json"
+#         test_path = data_dir / "test.json"
+
+#         split_data = build_train_test_json(
+#             seed=seed,
+#             spec=spec,
+#         )
+
+#         write_json(train_path, split_data["train"])
+#         write_json(test_path, split_data["test"])
+
+#         json_files = sorted(data_dir.glob("*.json"))
+
+#         print("\nAll json files:")
+#         for path in json_files:
+#             print(path)
+
+
+# if __name__ == "__main__":
+#     main()

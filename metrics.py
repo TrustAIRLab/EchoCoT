@@ -120,16 +120,6 @@ def compute_token_recall(recon_tokens: list, gt_tokens: list) -> float:
         return 0.0
     return round(compute_token_overlap_counts(recon_tokens, gt_tokens) / len(gt_tokens), 3)
 
-
-def token_recall(reference: str, candidate: str) -> float:
-    """Return how much of the reference vocabulary is covered by the candidate."""
-    reference_vocab = set(_tokenize_words(reference))
-    if not reference_vocab:
-        return 0.0
-    candidate_vocab = set(_tokenize_words(candidate))
-    return round(len(reference_vocab & candidate_vocab) / len(reference_vocab),3)
-
-
 def token_recall_passes_threshold(value: float) -> bool:
     """Return True if token_recall is within configured bounds."""
     return TOKEN_RECALL_LOWER_BOUND <= value <= TOKEN_RECALL_UPPER_BOUND
@@ -216,7 +206,7 @@ def compute_lexical_metrics_summary(
     recon_tokens = _metric_token_ids(reconstructed)
     summary_tokens = _metric_token_ids(reasoning_summary)
     token_precision = compute_token_precision(recon_tokens, summary_tokens)
-    token_recall_value = token_recall(reasoning_summary, reconstructed)
+    token_recall_value = compute_token_recall(reasoning_summary, reconstructed)
     token_f1 = compute_token_f1(token_precision, token_recall_value)
     return {
         "token_recall": token_recall_value,
@@ -286,7 +276,14 @@ class TrajectoryResult:
 
     @property
     def final_scores(self) -> float:
-        return (self.turns[-1].length_error, self.turns[-1].summary_token_recall, self.turns[-1].composite_score)
+        if not self.turns:
+            return (1.0, 0.0, 0.0)
+        turn = self.turns[-1]
+        return (
+            turn.length_error,
+            turn.summary_token_recall,
+            turn.summary_token_recall / (1 + turn.length_error),
+        )
     
     @property
     def best_token_count_ratio(self) -> float:
@@ -322,9 +319,9 @@ class TrajectoryResult:
         return "\n\n".join(lines)
 
 
-# def trajectory_hits_target(trajectory: TrajectoryResult) -> bool:
-#     """Return True if any turn in the trajectory is within configured bounds."""
-#     return any(token_count_ratio_passes_threshold(t.token_count_ratio) for t in trajectory.turns)
+def trajectory_hits_target(trajectory: TrajectoryResult) -> bool:
+    """Return True if any turn in the trajectory is within configured bounds."""
+    return any(token_count_ratio_passes_threshold(t.token_count_ratio) for t in trajectory.turns)
 
 
 # def trajectory_hits_summary_feedback_target(trajectory: TrajectoryResult) -> bool:
@@ -361,14 +358,16 @@ def summarize_cot(ground_truth_cot: str) -> str:
     )
     return (response.choices[0].message.content or "").strip()
 
-
-
 def format_score_table(
     sample_ids: list[str],
     ratio_matrix: list[list[Score]],
 ) -> str:
     
     def _format_score(score: Score) -> str:
+        if len(score) == 1:
+            return f"({score[0]:.3f})"
+        if score[1] == 0.0 and score[2] == 0.0:
+            return f"({score[0]:.3f}, N/A, N/A)"
         return f"({score[0]:.3f}, {score[1]:.3f}, {score[2]:.3f})"
 
     headers = [""] + sample_ids
@@ -390,6 +389,7 @@ def format_score_table(
 def get_best_turn_scores(
     sample_ids: list[str],
     ratio_matrix: list[list[Score]],
+    mode: str = "length_lexical",
 ):
     best_turns = []
     best_scores = []
@@ -402,7 +402,13 @@ def get_best_turn_scores(
         ]
 
         if candidates:
-            best_turn, best_score = max(candidates, key=lambda x: x[1][2])
+            if mode == "length_only":
+                best_turn, best_score = min(candidates, key=lambda x: x[1][0])
+            elif mode == "length_lexical_v1":
+                best_turn, best_score = min(candidates, key=lambda x: x[1][0])
+            else:
+                best_turn, best_score = max(candidates, key=lambda x: x[1][2])
+                
             best_turns.append(best_turn)
             best_scores.append(best_score)
         else:
@@ -418,9 +424,17 @@ def calculate_mean_matrix(best_scores: list[Score | None]):
     if not valid_scores:
         return None
 
+    if len(valid_scores[0]) > 1:
+        nonzero_lexical_scores = [
+            s for s in valid_scores
+            if not (s[1] == 0.0 and s[2] == 0.0)
+        ]
+        if nonzero_lexical_scores:
+            valid_scores = nonzero_lexical_scores
+
     return tuple(
         round(sum(s[i] for s in valid_scores) / len(valid_scores),3)
-        for i in range(3)
+        for i in range(len(valid_scores[0]))
     )
 
 def format_best_turn_table(
@@ -448,18 +462,30 @@ def format_best_turn_table(
         )
     )
 
-    rows.append(
-        " | ".join(
-            ["token_recall_best_turn"]
-            + [f"{s[1]:.3f}" if s is not None else "" for s in best_scores]
+    first_score = next((s for s in best_scores if s is not None), None)
+    if first_score is not None and len(first_score) > 1:
+        rows.append(
+            " | ".join(
+                ["summary_token_recall_best_turn"]
+                + [
+                    "N/A" if s is not None and s[1] == 0.0 and s[2] == 0.0
+                    else f"{s[1]:.3f}" if s is not None
+                    else ""
+                    for s in best_scores
+                ]
+            )
         )
-    )
 
-    rows.append(
-        " | ".join(
-            ["composite_score_best_turn"]
-            + [f"{s[2]:.3f}" if s is not None else "" for s in best_scores]
+        rows.append(
+            " | ".join(
+                ["composite_score_best_turn"]
+                + [
+                    "N/A" if s is not None and s[1] == 0.0 and s[2] == 0.0
+                    else f"{s[2]:.3f}" if s is not None
+                    else ""
+                    for s in best_scores
+                ]
+            )
         )
-    )
 
     return "\n".join(rows)

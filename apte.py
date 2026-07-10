@@ -33,16 +33,17 @@ INITIAL_EXPERIENCE_MD = ""
 def _normalize_prompt_module(name: str) -> str:
     """Return the importable prompt module name for supported aliases."""
     name = os.path.splitext(os.path.basename(name))[0]
-    aliases = {
-        "prompts": "prompts",
-        "prompts_cot": "prompts_cot",
-        "prompts_cot_gpt": "prompts_cot_gpt",
-        "prompts_with_summary": "prompts_with_summary",
-    }
-    try:
-        return aliases[name]
-    except KeyError as exc:
-        raise ValueError("prompt module must be one of: prompts, prompts_cot") from exc
+    return name
+    # aliases = {
+    #     "prompts": "prompts",
+    #     "prompts_cot": "prompts_cot",
+    #     "prompts_cot_gpt": "prompts_cot_gpt",
+    #     "prompts_with_summary": "prompts_with_summary",
+    # }
+    # try:
+    #     return aliases[name]
+    # except KeyError as exc:
+    #     raise ValueError("prompt module must be one of: prompts, prompts_cot") from exc
 
 
 def _load_prompt_templates(module_name: str | None = None):
@@ -127,8 +128,8 @@ class TrajectoryOptimizer:
     def _init_conversation(self):
         formatted = OPTIMIZER_SYSTEM_PROMPT.format(
             max_injection_turns=max_turns,
-            # ratio_lower_bound=RATIO_LOWER_BOUND,
-            # ratio_upper_bound=RATIO_UPPER_BOUND,
+            ratio_lower_bound=RATIO_LOWER_BOUND,
+            ratio_upper_bound=RATIO_UPPER_BOUND,
         )
         self.messages = [{"role": "system", "content": formatted}]
 
@@ -152,8 +153,15 @@ class TrajectoryOptimizer:
         """Generate one universal injection for the full minibatch."""
 
         per_sample_ratios_str = ""
-        for i, (length_error, token_recall, composite_score) in enumerate(per_sample_ratios):
-            per_sample_ratios_str += f"Sample {i+1}: length_error={length_error: .3f} token_recall={token_recall: .3f} composite_score={composite_score: .3f}\n"
+        for i, score in enumerate(per_sample_ratios):
+            if workflow_mode == "length_only":
+                per_sample_ratios_str += f"Sample {i+1}: length_error={score[0]: .3f}\n"
+            else:
+                length_error, summary_token_recall, composite_score = score
+                if summary_token_recall == 0.0 and composite_score == 0.0:
+                    per_sample_ratios_str += f"Sample {i+1}: length_error={length_error: .3f} summary_token_recall=N/A composite_score=N/A\n"
+                else:
+                    per_sample_ratios_str += f"Sample {i+1}: length_error={length_error: .3f} summary_token_recall={summary_token_recall: .3f} composite_score={composite_score: .3f}\n"
 
         if turn_idx <=1:
             cot_preview = "No reaction yet, as the first injection hasn't been sent."
@@ -174,22 +182,54 @@ class TrajectoryOptimizer:
     def _is_improved(current_perf, best_perf) -> bool:
         if best_perf is None:
             return True
-        current_frac = current_perf["mean_composite_score"]
-        best_frac = best_perf["mean_composite_score"]
-        if current_frac > best_frac:
-            return True
-        if current_frac < best_frac:
-            return False
-        current_error = current_perf["mean_length_error"]
-        best_error = best_perf["mean_length_error"]
-        return current_error < best_error
 
-    def record_batch_trajectory(self, realized_trajectory: list[str], mean_ratio_matrix) -> bool:
+        if workflow_mode == "length_only":
+            current_frac = current_perf["frac_in_target"]
+            best_frac = best_perf["frac_in_target"]
+
+            if current_frac > best_frac:
+                return True
+            if current_frac < best_frac:
+                return False
+
+            return current_perf["mean_length_error"] < best_perf["mean_length_error"]
+
+        elif workflow_mode == "length_lexical":
+            current_frac = current_perf["frac_in_target"]
+            best_frac = best_perf["frac_in_target"]
+
+            if current_frac > best_frac:
+                return True
+            if current_frac < best_frac:
+                return False
+
+            return current_perf["mean_composite_score"] > best_perf["mean_composite_score"]
+
+        else:
+            current_score = current_perf["mean_composite_score"]
+            best_score = best_perf["mean_composite_score"]
+
+            if current_score > best_score:
+                return True
+            if current_score < best_score:
+                return False
+
+            return current_perf["mean_length_error"] < best_perf["mean_length_error"]
+
+    def record_batch_trajectory(self, realized_trajectory: list[str], mean_ratio_matrix, frac_in_target) -> bool:
         """Record current minibatch outcome and update global best if improved."""
         self.current_trajectory = list(realized_trajectory)
-        self.current_perf = {"mean_composite_score": mean_ratio_matrix[2],
-                             "mean_length_error": mean_ratio_matrix[0],
-                             "mean_token_recall": mean_ratio_matrix[1]}
+        if workflow_mode == "length_only":
+            self.current_perf = {"mean_length_error": mean_ratio_matrix[0], "frac_in_target": frac_in_target}
+
+        # elif workflow_mode == "length_lexical":
+        #     self.current_perf = {"mean_composite_score": mean_ratio_matrix[2],
+        #                          "mean_length_error": mean_ratio_matrix[0],
+        #                          "mean_summary_token_recall": mean_ratio_matrix[1]}
+            
+        elif workflow_mode == "length_lexical":
+            self.current_perf = {"frac_in_target": frac_in_target,
+                "mean_composite_score": mean_ratio_matrix[2]}
 
         improved = self._is_improved(self.current_perf, self.best_perf)
         
@@ -205,26 +245,34 @@ class TrajectoryOptimizer:
                       sample_ids: list[str],
                       realized_trajectory: list[str],
                       scratchpad_preview: str, 
-                      cot_preview=str) -> str:
+                      cot_preview=str,
+                      frac_in_target: float | None = None) -> str:
     
         per_sample_ratios_str = ""
-        for i, (length_error, token_recall, composite_score) in enumerate(per_sample_ratios):
-            per_sample_ratios_str += f"Sample {i+1}: length_error={length_error: .3f} token_recall={token_recall: .3f} composite_score={composite_score: .3f}\n"
+        for i, score in enumerate(per_sample_ratios):
+            if workflow_mode == "length_only":
+                per_sample_ratios_str += f"Sample {i+1}: length_error={score[0]: .3f}\n"
+                # frac_in_target = 
+            else:
+                length_error, summary_token_recall, composite_score = score
+                if summary_token_recall == 0.0 and composite_score == 0.0:
+                    per_sample_ratios_str += f"Sample {i+1}: length_error={length_error: .3f} summary_token_recall=N/A composite_score=N/A\n"
+                else:
+                    per_sample_ratios_str += f"Sample {i+1}: length_error={length_error: .3f} summary_token_recall={summary_token_recall: .3f} composite_score={composite_score: .3f}\n"
 
-        # frac_in_target = calculate_frac_in_target(ratio_matrix)
-        # mean_error_distance = calculate_mean_error_distance(ratio_matrix)
+            mean_ratio_matrix_for_prompt = mean_ratio_matrix
+            if workflow_mode == "length_lexical":
+                mean_ratio_matrix_for_prompt = mean_ratio_matrix[2]
         
-
         msg = REFLECT_BATCH_USER_TEMPLATE.format(
             scratchpad_preview=scratchpad_preview,
             per_sample_ratios=per_sample_ratios_str,
             cot_preview=cot_preview,
             batch_idx=batch_idx,
-            # frac_in_target=frac_in_target,
-            # mean_error_distance=mean_error_distance,
             ratio_matrix_table=ratio_matrix_table,
             ratio_matrix_best_turn_table=ratio_matrix_best_turn_table,
-            mean_ratio_matrix=mean_ratio_matrix,
+            mean_ratio_matrix=mean_ratio_matrix_for_prompt,
+            frac_in_target=frac_in_target,
             realized_trajectory=realized_trajectory,
             best_perf=self.best_perf,
             current_perf=self.current_perf

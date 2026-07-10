@@ -8,3 +8,5 @@ logs/
 requirements.txt
 results/
 get-pip.py
+setup.sh
+.env

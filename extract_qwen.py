@@ -9,9 +9,10 @@ from metrics import (
     InjectionTurn,
     TrajectoryResult,
     compute_eval_metrics,
-    compute_length_metrics,
+    compute_lexical_metrics_summary,
     token_count_ratio_passes_threshold,
     count_tokens,
+    summarize_cot,
 )
 from custom_tools import get_chat_tools
 
@@ -83,6 +84,9 @@ class SampleSession:
         self.trajectory = TrajectoryResult()
         self.done = False
         self.current_ratio = 0.0
+        self.length_error = 1.0
+        self.token_recall = 0.0
+        self.composite_score = 0.0
         self.messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": question},
@@ -137,32 +141,37 @@ class SampleSession:
 
     def _record_scratchpad(self, content: str, turn_idx: int, cot:str):
         token_count = count_tokens(content)
-        length_m = compute_length_metrics(token_count, self.trajectory.ground_truth_tokens)
-        ratio = length_m["token_count_ratio"]
         eval_m = compute_eval_metrics(content, self.trajectory.ground_truth_cot)
+        summary_eval_m = compute_lexical_metrics_summary(content, self.trajectory.ground_truth_cot_summary)
+        summary_composite_score = summary_eval_m["token_recall"] / (1 + eval_m["length_error"])
         self.trajectory.turns.append(InjectionTurn(
             turn_idx=turn_idx,
             scratchpad_in=content,
             cot=cot,
             scratchpad_in_tokens=token_count,
-            token_count_ratio=ratio,
-            length_error=length_m["length_error"],
-            token_precision=eval_m["token_precision"],
-            token_recall=eval_m["token_recall"],
+            token_count_ratio=eval_m["token_count_ratio"],
+            length_error=eval_m["length_error"],
             token_f1=eval_m["token_f1"],
             rouge_l=eval_m["rouge_l"],
+            summary_token_recall=summary_eval_m["token_recall"],
+            composite_score=summary_composite_score,
         ))
         
         print(f"===== {turn_idx} ======")
-        print("CoT:", cot[:500])
+        print("CoT Full:", cot[:300])
+        print()
+        print("CoT Summary:", self.trajectory.ground_truth_cot_summary[:300])
         print()
         # print("Scratchpad:", content[:300])
         # print()
-        print("Token Counts:", token_count, self.trajectory.ground_truth_tokens, ratio)
+        print("Token Counts:", token_count, self.trajectory.ground_truth_tokens, eval_m["token_count_ratio"])
         print("token_f1:", eval_m["token_f1"], "rouge_l:", eval_m["rouge_l"])
         
-        self.current_ratio = ratio
-        if token_count_ratio_passes_threshold(ratio):
+        self.current_ratio = eval_m["token_count_ratio"]
+        self.length_error = eval_m["length_error"]
+        self.token_recall = summary_eval_m["token_recall"]
+        self.composite_score = summary_composite_score
+        if token_count_ratio_passes_threshold(eval_m["token_count_ratio"]):
             if self.trajectory.success_turn < 0:
                 self.trajectory.success_turn = turn_idx
             self.trajectory.success = True
@@ -192,6 +201,11 @@ class SampleSession:
             tool_args = safe_json_loads(tool_call.function.arguments or "{}")
             scratchpad_content += str(tool_args.get("content", ""))
         
+        if getattr(self, "mode", "length_lexical") == "length_only":
+            self.trajectory.ground_truth_cot_summary = ""
+        else:
+            self.trajectory.ground_truth_cot_summary = summarize_cot(reasoning)
+
         self._pending_tool_call_id = tool_call.id
         self._record_scratchpad(scratchpad_content, 0, reasoning)
         self._next_turn_idx = 1
@@ -237,6 +251,9 @@ class SampleSession:
         self._next_turn_idx += 1
     
     def final_send(self, injection: str):
+        if self.done:
+            return
+
         tool_result = {
             "tool_result": "scratchpad content submitted.",
             "scratchpad_FEEDBACK": injection,
