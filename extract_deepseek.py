@@ -151,6 +151,7 @@ class SampleSession:
         # print("Scratchpad:", content[:300])
         # print()
         print("Token Counts:", token_count, self.trajectory.ground_truth_tokens, eval_m["token_count_ratio"])
+        print("summary_token_recall:", round(summary_eval_m["token_recall"],3), "summary_composite_score:", round(summary_composite_score,3))
         print("token_f1:", eval_m["token_f1"], "rouge_l:", eval_m["rouge_l"])
         
         self.current_ratio = eval_m["token_count_ratio"]

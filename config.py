@@ -35,6 +35,13 @@ TARGET_MODEL_OPTIONS = {
         "runner": "glm",
         "notes": "GLM 5.2 (commercial API target)",
     },
+    "glm-4.7": {
+        "provider": "GLM API",
+        "model": "glm-4.7-flashx",
+        "save_dir": "",
+        "runner": "glm",
+        "notes": "GLM 4.7 (commercial API target)",
+    },
     "o4-mini": {
         "provider": "OpenAI API",
         "model": "o4-mini",

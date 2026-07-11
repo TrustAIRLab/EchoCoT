@@ -265,7 +265,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--experience_md", default=None)
     parser.add_argument("--dataset", type=str, default="OpenThoughts")
     parser.add_argument("--mode", default="length_lexical")
-    parser.add_argument("--max-samples", type=int, default=20)
+    parser.add_argument("--max-samples", type=int, default=30)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR)
     return parser

@@ -289,7 +289,7 @@ def log_result(output_dir, batch_idx, sample_idx, sample_id, question, trajector
         "best_token_f1": best_eval_turn.token_f1 if best_eval_turn else 0.0,
         "best_rouge_l": best_eval_turn.rouge_l if best_eval_turn else 0.0,
         "success": trajectory.success,
-        "best_turn": trajectory.success_turn,
+        "best_turn": best_turn,
     })
 
     turns_data = [{
@@ -435,7 +435,7 @@ def train(
         ]
         batch_f1s = [turn.token_f1 if turn else 0.0 for turn in batch_best_eval_turns]
         batch_best_length_errors = [
-            turn.length_error if turn else 0.0
+            turn.length_error if turn else 1.0
             for turn in batch_best_eval_turns
         ]
         frac_in_target = sum(length_error <= 0.100 for length_error in batch_best_length_errors) / len(batch_best_length_errors)

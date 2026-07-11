@@ -238,5 +238,4 @@ Bullets only. Distill the following knowledge:
 ###  TARGET MODEL BEHAVIOR PATTERNS
 
 ### NEXT PERTURBATION PLAN
-
 """

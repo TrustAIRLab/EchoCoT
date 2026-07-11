@@ -206,7 +206,7 @@ def compute_lexical_metrics_summary(
     recon_tokens = _metric_token_ids(reconstructed)
     summary_tokens = _metric_token_ids(reasoning_summary)
     token_precision = compute_token_precision(recon_tokens, summary_tokens)
-    token_recall_value = compute_token_recall(reasoning_summary, reconstructed)
+    token_recall_value = compute_token_recall(recon_tokens, summary_tokens)
     token_f1 = compute_token_f1(token_precision, token_recall_value)
     return {
         "token_recall": token_recall_value,
@@ -404,10 +404,10 @@ def get_best_turn_scores(
         if candidates:
             if mode == "length_only":
                 best_turn, best_score = min(candidates, key=lambda x: x[1][0])
-            elif mode == "length_lexical_v1":
+            elif mode == "length_lexical":
                 best_turn, best_score = min(candidates, key=lambda x: x[1][0])
-            else:
-                best_turn, best_score = max(candidates, key=lambda x: x[1][2])
+            # else:
+            #     best_turn, best_score = max(candidates, key=lambda x: x[1][2])
                 
             best_turns.append(best_turn)
             best_scores.append(best_score)
