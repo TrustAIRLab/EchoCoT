@@ -9,7 +9,7 @@ from custom_tools import get_openai_tools
 from metrics import (
     InjectionTurn,
     TrajectoryResult,
-    compute_eval_metrics,
+    compute_lexical_metrics_summary,
     compute_length_metrics,
     token_count_ratio_passes_threshold,
     count_tokens,
@@ -53,6 +53,9 @@ class SampleSession:
         self.trajectory = TrajectoryResult()
         self.done = False
         self.current_ratio = 0.0
+        self.length_error = 1.0
+        self.token_recall = 0.0
+        self.composite_score = 0.0
         self._tools = get_openai_tools(["scratchpad"])
         self._previous_response_id = None
         self._next_input = [
@@ -72,7 +75,8 @@ class SampleSession:
             tool_choice=tool_choice,
             temperature=1.0,
             max_output_tokens=2048*16,
-            reasoning={"effort": "medium", "summary": "auto"},
+            # reasoning={"effort": "medium", "summary": "auto"},
+            reasoning={"effort": "medium"},
         )
         self._previous_response_id = response.id
         return response
@@ -89,7 +93,8 @@ class SampleSession:
         print("Scratchpad:", content[:500])
         print(f"Turn-{turn_idx}:", token_count, self.trajectory.ground_truth_tokens, ratio)
         
-        eval_m = compute_eval_metrics(content, self.trajectory.ground_truth_cot)
+        summary_eval_m = compute_lexical_metrics_summary(content, self.trajectory.ground_truth_cot_summary)
+        summary_composite_score = summary_eval_m["token_recall"] / (1 + length_m["length_error"])
         self.trajectory.turns.append(InjectionTurn(
             turn_idx=turn_idx,
             scratchpad_in=content,
@@ -97,12 +102,15 @@ class SampleSession:
             scratchpad_in_tokens=token_count,
             token_count_ratio=ratio,
             length_error=length_m["length_error"],
-            token_precision=eval_m["token_precision"],
-            token_recall=eval_m["token_recall"],
-            token_f1=eval_m["token_f1"],
-            rouge_l=eval_m["rouge_l"],
+            token_f1=summary_eval_m["token_f1"],
+            rouge_l=summary_eval_m["rouge_l"],
+            summary_token_recall=summary_eval_m["token_recall"],
+            composite_score=summary_composite_score,
         ))
         self.current_ratio = ratio
+        self.length_error = length_m["length_error"]
+        self.token_recall = summary_eval_m["token_recall"]
+        self.composite_score = summary_composite_score
         if token_count_ratio_passes_threshold(ratio):
             if self.trajectory.success_turn < 0:
                 self.trajectory.success_turn = turn_idx
@@ -127,6 +135,10 @@ class SampleSession:
             out_details = getattr(usage, "output_tokens_details", None) if usage else None
         
             self.trajectory.ground_truth_tokens = getattr(out_details, "reasoning_tokens", 0) or 0
+            if getattr(self, "skip_cot_summary", False):
+                self.trajectory.ground_truth_cot_summary = ""
+            else:
+                self.trajectory.ground_truth_cot_summary = cot
         
         self._pending_reasoning_inputs = [
             converted for item in reasoning_items
@@ -165,8 +177,8 @@ class SampleSession:
             return
         self.trajectory.turns[-1].injection_out = injection
         tool_result = {
-            # "scratchpad_content": "scratchpad content submitted.", 
-            "scratchpad_content": self.trajectory.ground_truth_cot,
+            "scratchpad_content": "scratchpad content submitted.", 
+            # "scratchpad_content": self.trajectory.ground_truth_cot,
             "scratchpad_FEEDBACK": injection,
         }
         self._next_input = [{

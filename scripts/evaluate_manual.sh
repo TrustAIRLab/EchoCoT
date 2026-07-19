@@ -1,4 +1,5 @@
-model=qwen3.5-plus
+# model=qwen3.5-plus
+model=glm-5.2
 # model=deepseek-v4-flash
 mode=manual_injection
 experience_md=results/train/$mode/experience.md
@@ -9,5 +10,6 @@ do
     --target-model $model \
     --dataset $dataset \
     --mode $mode \
+    --max-samples 50 \
     --experience_md $experience_md
 done

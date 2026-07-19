@@ -10,8 +10,6 @@ from config import (
     RATIO_LOWER_BOUND,
     RATIO_UPPER_BOUND,
     WORKFLOW_MODE,
-    TOKEN_RECALL_LOWER_BOUND,
-    TOKEN_RECALL_UPPER_BOUND,
 )
 
 # Module-level state (set by main.py before use)

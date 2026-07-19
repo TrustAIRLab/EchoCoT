@@ -72,14 +72,14 @@ TARGET_MODEL_OPTIONS = {
     },
     "gemini-2.5": {
         "provider": "Google API",
-        "model": "gemini-2.5-pro",
+        "model": "gemini-2.5-flash",
         "save_dir": "",
         "runner": "gemini",
-        "notes": "Google Gemini 2.5 Pro (commercial API target)",
+        "notes": "Google Gemini 2.5 flash (commercial API target)",
     },
-    "gemini-3.5": {
+    "gemini-3.1": {
         "provider": "Google API",
-        "model": "gemini-3.5-flash",
+        "model": "gemini-3.1-flash-lite", # gemini-3.5-flash
         "save_dir": "",
         "runner": "gemini",
         "notes": "Google Gemini 3.5 Pro (commercial API target)",
@@ -112,7 +112,7 @@ TARGET_MODEL_OPTIONS = {
         "runner": "claude",
         "notes": "Claude Sonnet 4.6",
     },
-    "haiku-4.6": {
+    "opus-4.6": {
         "provider": "Claude",
         "model": "claude-opus-4-6", # haiku can be doable, so is opus-4-6
         "save_dir": "",
@@ -208,13 +208,8 @@ MAX_INJECTION_TURNS = 2
 RATIO_LOWER_BOUND = 0.90
 RATIO_UPPER_BOUND = 1.10
 
-# CoT-summary feedback mode target range for summary token recall
-TOKEN_RECALL_LOWER_BOUND = 0.50
-TOKEN_RECALL_UPPER_BOUND = 1.00
-
 WORKFLOW_MODE = "length_lexical" # or length_only
 SUMMARY_MODEL = "gpt-4.1-mini"
-
 
 # After first success, allow this many extra turns for improvement
 EXTRA_TURNS_AFTER_SUCCESS = 0

@@ -35,13 +35,11 @@ def load_prompt(path: str | Path) -> str:
         raise ValueError(f"Baseline prompt file is empty: {path}")
     return text
 
-
 def load_samples(seed: int, max_samples: int | None, data_path: str | None):
     samples = list(ReasoningDataset(data_path=data_path))
     random.seed(seed)
     random.shuffle(samples)
     return samples[:max_samples] if max_samples is not None else samples
-
 
 def record_trace(session, trace: str, cot: str = "") -> None:
     token_count = count_tokens(trace)

@@ -4,11 +4,12 @@ import re, os
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Dict
-
+import math
+import unicodedata
+import difflib
 from config import RATIO_LOWER_BOUND, RATIO_UPPER_BOUND, TOKEN_RECALL_LOWER_BOUND, TOKEN_RECALL_UPPER_BOUND, SUMMARY_MODEL, SUMMARY_PROMPT_FILE
 
 from rouge_score import rouge_scorer
-
 import tiktoken
 
 _ENC = tiktoken.get_encoding("cl100k_base")
@@ -46,12 +47,17 @@ def compute_length_error(token_count_ratio: float) -> float:
 
 def compute_length_metrics(scratchpad_tokens: int, gt_tokens: int) -> Dict[str, float]:
     """Compute token_count_ratio and length_error from the same token counts."""
+    if gt_tokens is None:
+        return {
+            "token_count_ratio": math.nan,
+            "length_error": math.nan,
+        }
+
     token_count_ratio = 0.0 if gt_tokens == 0 else scratchpad_tokens / gt_tokens
     return {
         "token_count_ratio": token_count_ratio,
         "length_error": compute_length_error(token_count_ratio),
     }
-
 
 def token_count_ratio_passes_threshold(token_count_ratio: float) -> bool:
     """Return True if token_count_ratio is within configured bounds."""
@@ -97,7 +103,6 @@ def _best_ratios_by_sample(ratio_matrix: list[list[float]]) -> list[float]:
 # Lexical metrics
 # ---------------------------------------------------------------------------
 
-
 def compute_token_overlap_counts(recon_tokens: list, gt_tokens: list) -> int:
     """Multiset token overlap count."""
     recon_counter = Counter(recon_tokens)
@@ -113,7 +118,6 @@ def compute_token_precision(recon_tokens: list, gt_tokens: list) -> float:
         return 0.0
     return round(compute_token_overlap_counts(recon_tokens, gt_tokens) / len(recon_tokens), 3)
 
-
 def compute_token_recall(recon_tokens: list, gt_tokens: list) -> float:
     """Token Recall = overlap_tokens / reference_tokens."""
     if not gt_tokens:
@@ -124,13 +128,11 @@ def token_recall_passes_threshold(value: float) -> bool:
     """Return True if token_recall is within configured bounds."""
     return TOKEN_RECALL_LOWER_BOUND <= value <= TOKEN_RECALL_UPPER_BOUND
 
-
 def compute_token_f1(token_precision: float, token_recall: float) -> float:
     """Token F1 = harmonic mean of Token Precision and Token Recall."""
     if token_precision + token_recall == 0:
         return 0.0
     return round(2 * token_precision * token_recall / (token_precision + token_recall),3)
-
 
 def compute_rouge_l(reconstructed: str, ground_truth: str) -> float:
     """ROUGE-L F1 between reconstructed text and ground-truth text."""
@@ -140,7 +142,6 @@ def compute_rouge_l(reconstructed: str, ground_truth: str) -> float:
     scores = scorer.score(target=ground_truth, prediction=reconstructed)
     return round(scores["rougeL"].fmeasure,3)
 
-
 def compute_rouge_l_recall(reconstructed: str, reference: str) -> float:
     """ROUGE-L Recall between reconstructed text and reference text."""
     if not reference or rouge_scorer is None:
@@ -148,7 +149,6 @@ def compute_rouge_l_recall(reconstructed: str, reference: str) -> float:
     scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
     scores = scorer.score(target=reference, prediction=reconstructed)
     return round(scores["rougeL"].recall,3)
-
 
 def _compute_lexical_metrics_from_tokens(
     recon_tokens: list,
@@ -227,6 +227,26 @@ def is_successful_extraction(
         and metrics.get("token_f1", 0.0) >= token_f1_threshold
     )
 
+def compute_token_em(reconstructed: str, ground_truth: str, *, min_run: int = 1) -> float:
+    def _normalize_text(text: str) -> str:
+        s = unicodedata.normalize("NFKC", text)
+        s = " ".join(s.split())
+        return s
+
+    a = _ENC.encode(_normalize_text(reconstructed))
+    b = _ENC.encode(_normalize_text(ground_truth))
+
+    if not b:
+        return 0.0
+
+    sm = difflib.SequenceMatcher(a=a, b=b, autojunk=False)
+    matched = 0
+    for tag, i1, i2, _, _ in sm.get_opcodes():
+        if tag == "equal":
+            run = i2 - i1
+            if run >= min_run:
+                matched += run
+    return round(matched / len(b),3)
 
 # ---------------------------------------------------------------------------
 # Trajectory data structures
@@ -370,7 +390,11 @@ def format_score_table(
             return f"({score[0]:.3f}, N/A, N/A)"
         return f"({score[0]:.3f}, {score[1]:.3f}, {score[2]:.3f})"
 
-    headers = [""] + sample_ids
+    headers = [""] + [
+        f"Sample {i + 1}"
+        for i in range(len(sample_ids))
+    ]
+
     rows = [
         " | ".join(headers),
         " | ".join(["---"] * len(headers)),

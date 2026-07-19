@@ -16,7 +16,7 @@ from custom_tools import get_openai_tools
 from metrics import (
     InjectionTurn,
     TrajectoryResult,
-    compute_eval_metrics,
+    compute_lexical_metrics_summary,
     compute_length_metrics,
     token_count_ratio_passes_threshold,
     count_tokens,
@@ -85,6 +85,9 @@ class SampleSession:
         self.trajectory = TrajectoryResult()
         self.done = False
         self.current_ratio = 0.0
+        self.length_error = 1.0
+        self.token_recall = 0.0
+        self.composite_score = 0.0
         self._tools = get_openai_tools(["scratchpad"])
         # `_next_input` is the FULL accumulating conversation. After each
         # response we append every output item (reasoning + function_call)
@@ -99,28 +102,25 @@ class SampleSession:
         self._next_turn_idx = 0
 
     def _create_response(self, tool_choice="required"):
-        # Grok 4 reasoning rejects `reasoning_effort` / presence_penalty /
-        # frequency_penalty / stop. Keep payload minimal.
-        response = _client.responses.create(
-            model=_model_id,
-            input=self._next_input,
-            tools=self._tools,
-            tool_choice=tool_choice,
-            include=["reasoning.encrypted_content"],
-            reasoning={"effort": "low"},
-            max_output_tokens=2048 * 8,
-        )
-        return response
+        kwargs = {
+            "model": _model_id,
+            "input": self._next_input,
+            "tools": self._tools,
+            "tool_choice": tool_choice,
+            "max_output_tokens": 2048 * 16,
+        }
+
+        if "reasoning" in _model_id or "grok-4.20" in _model_id:
+            kwargs["include"] = ["reasoning.encrypted_content"]
+
+        return _client.responses.create(**kwargs)
 
     def _record_scratchpad(self, content: str, turn_idx: int, cot: str):
         token_count = count_tokens(content)
         length_m = compute_length_metrics(token_count, self.trajectory.ground_truth_tokens)
         ratio = length_m["token_count_ratio"]
-        print(f"Turn-{turn_idx}:", token_count, self.trajectory.ground_truth_tokens, ratio, "reasoning summary:", count_tokens(cot))
-        print("CoT:", cot[:500])
-        print()
-        print("scratchpad:", content[:500])
-        eval_m = compute_eval_metrics(content, self.trajectory.ground_truth_cot)
+        summary_eval_m = compute_lexical_metrics_summary(content, self.trajectory.ground_truth_cot_summary)
+        summary_composite_score = summary_eval_m["token_recall"] / (1 + length_m["length_error"])
         self.trajectory.turns.append(InjectionTurn(
             turn_idx=turn_idx,
             scratchpad_in=content,
@@ -128,17 +128,29 @@ class SampleSession:
             scratchpad_in_tokens=token_count,
             token_count_ratio=ratio,
             length_error=length_m["length_error"],
-            token_precision=eval_m["token_precision"],
-            token_recall=eval_m["token_recall"],
-            token_f1=eval_m["token_f1"],
-            rouge_l=eval_m["rouge_l"],
+            token_f1=summary_eval_m["token_f1"],
+            rouge_l=summary_eval_m["rouge_l"],
+            summary_token_recall=summary_eval_m["token_recall"],
+            composite_score=summary_composite_score,
         ))
         self.current_ratio = ratio
+        self.length_error = length_m["length_error"]
+        self.token_recall = summary_eval_m["token_recall"]
+        self.composite_score = summary_composite_score
         if token_count_ratio_passes_threshold(ratio):
             if self.trajectory.success_turn < 0:
                 self.trajectory.success_turn = turn_idx
             self.trajectory.success = True
 
+        print(f"===== {turn_idx} ======")
+        print("CoT Full:", cot[:300])
+        print()
+        print("CoT Summary:", self.trajectory.ground_truth_cot_summary[:300])
+        # print("Scratchpad:", content[:300])
+        # print()
+        print("Token Counts:", token_count, self.trajectory.ground_truth_tokens, length_m["token_count_ratio"])
+        print("token_f1:", summary_eval_m["token_f1"], "rouge_l:", summary_eval_m["rouge_l"])
+        
     def _handle_response(self, response, turn_idx: int):
         output = getattr(response, "output", None) or []
         reasoning_items = [item for item in output if getattr(item, "type", None) == "reasoning"]
@@ -148,6 +160,10 @@ class SampleSession:
         if turn_idx == 0:
             self.trajectory.ground_truth_cot = cot
             self.trajectory.ground_truth_tokens = _reasoning_tokens(getattr(response, "usage", None))
+            if getattr(self, "skip_cot_summary", False):
+                self.trajectory.ground_truth_cot_summary = ""
+            else:
+                self.trajectory.ground_truth_cot_summary = cot
 
         # Replay every output item verbatim on the next turn. The reasoning
         # items carry `encrypted_content` (because we asked for it via
@@ -209,17 +225,17 @@ class SampleSession:
     def final_send(self, injection: str):
         if self.done:
             return
-        if self.trajectory.turns:
-            self.trajectory.turns[-1].injection_out = injection
-        self._next_input.append({
-            "type": "function_call_output",
-            "call_id": self._pending_call_id,
-            "output": json.dumps({
-                "scratchpad_content": "scratchpad content accepted.",
-                "scratchpad_FEEDBACK": injection,
-            }, ensure_ascii=False),
-        })
-        response = self._create_response(tool_choice="auto")
-        self.trajectory.final_output = response.output_text or ""
+        # if self.trajectory.turns:
+        #     self.trajectory.turns[-1].injection_out = injection
+        # self._next_input.append({
+        #     "type": "function_call_output",
+        #     "call_id": self._pending_call_id,
+        #     "output": json.dumps({
+        #         "scratchpad_content": "scratchpad content accepted.",
+        #         "scratchpad_FEEDBACK": injection,
+        #     }, ensure_ascii=False),
+        # })
+        # response = self._create_response(tool_choice="auto")
+        # self.trajectory.final_output = response.output_text or ""
+        self.trajectory.final_output = ""
         self.done = True
-

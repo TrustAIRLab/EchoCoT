@@ -213,7 +213,10 @@ class SampleSession:
             return
         
         # record cot summary
-        self.trajectory.ground_truth_cot_summary = cot
+        if getattr(self, "skip_cot_summary", False):
+            self.trajectory.ground_truth_cot_summary = ""
+        else:
+            self.trajectory.ground_truth_cot_summary = cot
 
         self._pending_tool_names = [function_call.name for function_call in function_calls]
         self._record_scratchpad(scratchpad_content, 0, cot)
@@ -271,14 +274,16 @@ class SampleSession:
     def final_send(self, injection: str):
         if self.done:
             return
-        if self.trajectory.turns:
-            self.trajectory.turns[-1].injection_out = injection
-        tool_result = {
-            "tool_result": "scratchpad content accepted.",
-            "scratchpad_FEEDBACK": injection,
-        }
-        self._append_function_responses(tool_result)
-        response = self._generate(require_tool=False)
-        answer_blocks, _, _ = _extract_text_thoughts_and_calls(response)
-        self.trajectory.final_output = "\n".join(answer_blocks).strip()
+        # if self.trajectory.turns:
+        #     self.trajectory.turns[-1].injection_out = injection
+        # tool_result = {
+        #     "tool_result": "scratchpad content accepted.",
+        #     "scratchpad_FEEDBACK": injection,
+        # }
+        # self._append_function_responses(tool_result)
+        # response = self._generate(require_tool=False)
+        # answer_blocks, _, _ = _extract_text_thoughts_and_calls(response)
+        # self.trajectory.final_output = "\n".join(answer_blocks).strip()
+        # self.done = True
+        self.trajectory.final_output = ""
         self.done = True

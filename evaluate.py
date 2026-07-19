@@ -28,7 +28,7 @@ def load_target(model_key: str):
         import extract_glm
         extract_glm.load_model(entry["model"], entry["save_dir"])
     elif entry["runner"] == "minimax":
-        import extract_minimax
+        import backup.extract_minimax as extract_minimax
         extract_minimax.load_model(entry["model"], entry["save_dir"])
     elif entry["runner"] == "openai":
         import extract_gpt
@@ -56,7 +56,7 @@ def make_session(question: str, runner: str):
     elif runner == "glm":
         from extract_glm import new_session
     elif runner == "minimax":
-        from extract_minimax import new_session
+        from backup.extract_minimax import new_session
     elif runner == "openai":
         from extract_gpt import new_session
     elif runner == "gemini":
@@ -109,8 +109,6 @@ def turn_to_record(turn) -> dict[str, Any]:
         "scratchpad_tokens": turn.scratchpad_in_tokens,
         "token_count_ratio": turn.token_count_ratio,
         "length_error": turn.length_error,
-        # "token_precision": turn.token_precision,
-        # "token_recall": turn.token_recall,
         "token_f1": turn.token_f1,
         "rouge_l": turn.rouge_l,
         "injection_out": turn.injection_out
@@ -166,6 +164,7 @@ def run_model_evaluation(
     for sample in samples:
         question = sample.question + ARCHIVE_SUFFIX
         session = make_session(question, runner)
+        session.skip_cot_summary = True
         session.sample_id = sample.sample_id
         
         if sample.sample_id in done_sample_ids:
@@ -265,7 +264,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--experience_md", default=None)
     parser.add_argument("--dataset", type=str, default="OpenThoughts")
     parser.add_argument("--mode", default="length_lexical")
-    parser.add_argument("--max-samples", type=int, default=30)
+    parser.add_argument("--max-samples", type=int, default=100)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR)
     return parser

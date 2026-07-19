@@ -201,7 +201,7 @@ class SampleSession:
             tool_args = safe_json_loads(tool_call.function.arguments or "{}")
             scratchpad_content += str(tool_args.get("content", ""))
         
-        if getattr(self, "mode", "length_lexical") == "length_only":
+        if getattr(self, "skip_cot_summary", False) or getattr(self, "mode", "length_lexical") == "length_only":
             self.trajectory.ground_truth_cot_summary = ""
         else:
             self.trajectory.ground_truth_cot_summary = summarize_cot(reasoning)

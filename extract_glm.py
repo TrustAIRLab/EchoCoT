@@ -444,7 +444,7 @@ class SampleSession:
 
         scratchpad_content = _collect_scratchpad_content(tool_calls)
 
-        if getattr(self, "mode", "length_lexical") == "length_only":
+        if getattr(self, "skip_cot_summary", False) or getattr(self, "mode", "length_lexical") == "length_only":
             self.trajectory.ground_truth_cot_summary = ""
         else:
             self.trajectory.ground_truth_cot_summary = summarize_cot(reasoning)

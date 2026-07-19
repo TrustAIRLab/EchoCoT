@@ -168,25 +168,6 @@ def _trajectory_turn_at(trajectory, turn_idx):
         return None
     return trajectory.turns[turn_idx]
 
-# def update_trajectory_success(trajectory, mode: str):
-#     """Apply mode-specific success criteria and first success turn."""
-#     if mode == "cot_summary_feedback":
-#         for turn in trajectory.turns:
-#             if (RATIO_LOWER_BOUND <= turn.token_count_ratio <= RATIO_UPPER_BOUND
-#                     and TOKEN_RECALL_LOWER_BOUND <= turn.summary_token_recall <= TOKEN_RECALL_UPPER_BOUND):
-#                 trajectory.success = True
-#                 trajectory.success_turn = turn.turn_idx
-#                 return
-#         trajectory.success = False
-#         trajectory.success_turn = -1
-#         return
-
-#     trajectory.success = trajectory_hits_target(trajectory)
-#     trajectory.success_turn = next(
-#         (turn.turn_idx for turn in trajectory.turns if RATIO_LOWER_BOUND <= turn.token_count_ratio <= RATIO_UPPER_BOUND),
-#         -1,
-#     )
-
 def run_batch(optimizer, minibatch, runner: str, max_turns: int, mode: str = "length_only"):
     """Run a minibatch in lockstep with one universal injection per turn."""
     sessions = [make_session(sample.question + ARCHIVE_SUFFIX, runner) for sample in minibatch]
@@ -251,7 +232,6 @@ def run_batch(optimizer, minibatch, runner: str, max_turns: int, mode: str = "le
         if sess.trajectory.turns:
             sess.trajectory.turns[-1].stopped = True
             # update_trajectory_success(sess.trajectory, mode)
-
     return [sess.trajectory for sess in sessions], realized_trajectory, ratio_matrix, scratchpad_preview, cot_preview
 
 def list_models():
@@ -440,7 +420,6 @@ def train(
         ]
         frac_in_target = sum(length_error <= 0.100 for length_error in batch_best_length_errors) / len(batch_best_length_errors)
         
-        
         for i, (sample, trajectory) in enumerate(zip(batch, trajectories)):
             status = "SUCCESS" if trajectory.success else "FAIL"
             print(
@@ -529,7 +508,7 @@ def cli():
 
     parser.add_argument("--target-model", default=DEFAULT_TARGET_MODEL)
     parser.add_argument("--optimizer-model", default=DEFAULT_OPTIMIZER_MODEL)
-    parser.add_argument("--dataset", default=None)
+    parser.add_argument("--dataset", default="OpenThoughts")
     parser.add_argument("--batches", type=int, default=MAX_BATCHES)
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--seed", type=int, default=42)
