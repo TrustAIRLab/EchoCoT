@@ -7,7 +7,7 @@ from typing import Dict
 import math
 import unicodedata
 import difflib
-from config import RATIO_LOWER_BOUND, RATIO_UPPER_BOUND, TOKEN_RECALL_LOWER_BOUND, TOKEN_RECALL_UPPER_BOUND, SUMMARY_MODEL, SUMMARY_PROMPT_FILE
+from config import RATIO_LOWER_BOUND, RATIO_UPPER_BOUND, SUMMARY_MODEL, SUMMARY_PROMPT_FILE
 
 from rouge_score import rouge_scorer
 import tiktoken
@@ -123,10 +123,6 @@ def compute_token_recall(recon_tokens: list, gt_tokens: list) -> float:
     if not gt_tokens:
         return 0.0
     return round(compute_token_overlap_counts(recon_tokens, gt_tokens) / len(gt_tokens), 3)
-
-def token_recall_passes_threshold(value: float) -> bool:
-    """Return True if token_recall is within configured bounds."""
-    return TOKEN_RECALL_LOWER_BOUND <= value <= TOKEN_RECALL_UPPER_BOUND
 
 def compute_token_f1(token_precision: float, token_recall: float) -> float:
     """Token F1 = harmonic mean of Token Precision and Token Recall."""
@@ -342,15 +338,6 @@ class TrajectoryResult:
 def trajectory_hits_target(trajectory: TrajectoryResult) -> bool:
     """Return True if any turn in the trajectory is within configured bounds."""
     return any(token_count_ratio_passes_threshold(t.token_count_ratio) for t in trajectory.turns)
-
-
-# def trajectory_hits_summary_feedback_target(trajectory: TrajectoryResult) -> bool:
-#     """Return True if any turn passes both length and summary-recall bounds."""
-#     return any(
-#         token_count_ratio_passes_threshold(t.token_count_ratio)
-#         and token_recall_passes_threshold(t.summary_token_recall)
-#         for t in trajectory.turns
-#     )
 
 
 # def frac_trajectories_in_target(trajectories: list[TrajectoryResult]) -> float:

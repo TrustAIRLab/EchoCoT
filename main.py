@@ -23,8 +23,6 @@ from config import (
     RATIO_LOWER_BOUND,
     RATIO_UPPER_BOUND,
     TARGET_MODEL_OPTIONS,
-    TOKEN_RECALL_LOWER_BOUND,
-    TOKEN_RECALL_UPPER_BOUND,
 )
 import apte as opt_module
 from apte import TrajectoryOptimizer
@@ -354,8 +352,6 @@ def train(
             "max_injection_turns": injection_turns,
             "prompt_file": prompt_file,
             "mode": mode,
-            "token_recall_lower_bound": TOKEN_RECALL_LOWER_BOUND,
-            "token_recall_upper_bound": TOKEN_RECALL_UPPER_BOUND,
             "seed": seed,
             "ratio_lower_bound": RATIO_LOWER_BOUND,
             "ratio_upper_bound": RATIO_UPPER_BOUND,

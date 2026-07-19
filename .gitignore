@@ -5,6 +5,7 @@ base/
 pytest.ini
 data/
 backup/
+analysis/
 logs/
 requirements.txt
 results/
