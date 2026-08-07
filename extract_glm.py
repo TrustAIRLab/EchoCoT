@@ -157,19 +157,19 @@ def _assistant_message_dict(msg, reasoning: str) -> dict:
         "content": getattr(msg, "content", None) or "",
     }
 
+    assistant_msg["reasoning_content"] = reasoning
+
     if reasoning:
-        assistant_msg["reasoning_content"] = reasoning
+        model_extra = getattr(msg, "model_extra", None) or {}
+        if isinstance(model_extra, dict):
+            for key in REASONING_KEYS:
+                if key in model_extra and key not in assistant_msg:
+                    assistant_msg[key] = model_extra[key]
 
-    model_extra = getattr(msg, "model_extra", None) or {}
-    if isinstance(model_extra, dict):
-        for key in REASONING_KEYS:
-            if key in model_extra and key not in assistant_msg:
-                assistant_msg[key] = model_extra[key]
-
-    for attr_name in REASONING_KEYS:
-        value = getattr(msg, attr_name, None)
-        if value is not None and attr_name not in assistant_msg:
-            assistant_msg[attr_name] = value
+        for attr_name in REASONING_KEYS:
+            value = getattr(msg, attr_name, None)
+            if value is not None and attr_name not in assistant_msg:
+                assistant_msg[attr_name] = value
 
     tool_calls = getattr(msg, "tool_calls", None) or []
     if tool_calls:
@@ -432,7 +432,10 @@ class SampleSession:
         self.trajectory.ground_truth_cot = reasoning
         self.trajectory.ground_truth_tokens = count_tokens(reasoning)
 
-        self._append_assistant(msg, reasoning)
+        self._append_assistant(
+            msg,
+            reasoning if getattr(self, "retain_reasoning_context", True) else "",
+        )
 
         tool_calls = getattr(msg, "tool_calls", None) or []
 
@@ -480,7 +483,10 @@ class SampleSession:
         if not reasoning:
             print("WARNING: GLM returned empty reasoning_content.")
 
-        self._append_assistant(msg, reasoning)
+        self._append_assistant(
+            msg,
+            reasoning if getattr(self, "retain_reasoning_context", True) else "",
+        )
 
         tool_calls = getattr(msg, "tool_calls", None) or []
 
@@ -513,7 +519,10 @@ class SampleSession:
         msg = self._generate()
 
         reasoning = _get_reasoning_content(msg)
-        self._append_assistant(msg, reasoning)
+        self._append_assistant(
+            msg,
+            reasoning if getattr(self, "retain_reasoning_context", True) else "",
+        )
 
         self.trajectory.final_output = msg.content or ""
         self.done = True

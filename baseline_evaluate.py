@@ -197,15 +197,18 @@ def run_model_baseline(model_key: str, prompt: str, args: argparse.Namespace) ->
     success_count = 0
 
     for sample in samples:
+    
         session = make_session(sample.question, runner)
         session.sample_id = sample.sample_id
+     
         
         if sample.sample_id in done_sample_ids:
             print(f"[{model_key}] skip existing sample={sample.sample_id}")
             continue
-
-        run_baseline(session, prompt)
-
+        try:
+            run_baseline(session, prompt)
+        except:
+            continue
         trajectory = session.trajectory
         all_scratchpads = [turn_to_record(turn) for turn in trajectory.turns]
         selected = best_turn(trajectory.turns)
@@ -215,8 +218,6 @@ def run_model_baseline(model_key: str, prompt: str, args: argparse.Namespace) ->
             "scratchpad_tokens": 0,
             "token_count_ratio": 0.0,
             "length_error": 0.0,
-            # "token_precision": 0.0,
-            # "token_recall": 0.0,
             "token_f1": 0.0,
             "rouge_l": 0.0
         }
@@ -251,8 +252,6 @@ def run_model_baseline(model_key: str, prompt: str, args: argparse.Namespace) ->
         "success_rate": success_count / n if n else 0.0,
         "avg_token_count_ratio": average(best_records, "token_count_ratio"),
         "avg_length_error": average(best_records, "length_error"),
-        # "avg_token_precision": average(best_records, "token_precision"),
-        # "avg_token_recall": average(best_records, "token_recall"),
         "avg_token_f1": average(best_records, "token_f1"),
         "avg_rouge_l": average(best_records, "rouge_l"),
         "records_path": str(records_path),

@@ -1,4 +1,4 @@
-"""DeepSeek target model: API calls, reasoning replay, multi-turn extraction."""
+"""DeepSeek target model via OpenRouter: API calls, reasoning replay, multi-turn extraction."""
 
 import json
 import os
@@ -28,6 +28,86 @@ REARCHIVE_SUFFIX = "\n\nMandatory next step: call the scratchpad tool again now 
 _client = None
 _model_id = None
 
+def _openrouter_model_id(model_name: str) -> str:
+    if "/" in model_name:
+        return model_name
+    return f"deepseek/{model_name}"
+
+def _get_reasoning_details(msg):
+    reasoning_details = getattr(msg, "reasoning_details", None)
+    if reasoning_details is not None:
+        return reasoning_details
+
+    model_extra = getattr(msg, "model_extra", None) or {}
+    if isinstance(model_extra, dict):
+        return model_extra.get("reasoning_details")
+
+    return None
+
+def _stringify_reasoning(value) -> str:
+    if isinstance(value, str):
+        return value
+
+    if isinstance(value, list):
+        parts = []
+        for item in value:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                text = (
+                    item.get("text")
+                    or item.get("content")
+                    or item.get("reasoning")
+                    or item.get("reasoning_content")
+                )
+                if text:
+                    parts.append(text)
+            else:
+                text = (
+                    getattr(item, "text", None)
+                    or getattr(item, "content", None)
+                    or getattr(item, "reasoning", None)
+                    or getattr(item, "reasoning_content", None)
+                )
+                if not text and hasattr(item, "model_dump"):
+                    dumped = item.model_dump()
+                    text = (
+                        dumped.get("text")
+                        or dumped.get("content")
+                        or dumped.get("reasoning")
+                        or dumped.get("reasoning_content")
+                    )
+                if text:
+                    parts.append(text)
+
+        return "\n".join(parts)
+
+    if isinstance(value, dict):
+        return (
+            value.get("text")
+            or value.get("content")
+            or value.get("reasoning")
+            or value.get("reasoning_content")
+            or ""
+        )
+
+    return ""
+
+def _get_reasoning_content(msg) -> str:
+    for attr_name in ("reasoning_content", "reasoning"):
+        reasoning = _stringify_reasoning(getattr(msg, attr_name, None))
+        if reasoning:
+            return reasoning
+
+    model_extra = getattr(msg, "model_extra", None) or {}
+    if isinstance(model_extra, dict):
+        for key in ("reasoning_content", "reasoning"):
+            reasoning = _stringify_reasoning(model_extra.get(key))
+            if reasoning:
+                return reasoning
+
+    return _stringify_reasoning(_get_reasoning_details(msg))
+
 def safe_json_loads(text):
     raw = (text or "").strip()
     if not raw:
@@ -54,14 +134,14 @@ def safe_json_loads(text):
     return {"content": fixed}
 
 def load_model(model_name: str, save_dir: str = ""):
-    """Initialize DeepSeek API client."""
+    """Initialize DeepSeek OpenRouter API client."""
     del save_dir
     global _client, _model_id
-    api_key = os.getenv("DEEPSEEK_API_KEY")
+    api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
-        raise ValueError("Set DEEPSEEK_API_KEY for DeepSeek target model")
-    _client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
-    _model_id = model_name
+        raise ValueError("Set OPENROUTER_API_KEY for DeepSeek target model via OpenRouter")
+    _client = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
+    _model_id = _openrouter_model_id(model_name)
 
 def new_session(question: str):
     return SampleSession(question)
@@ -88,10 +168,9 @@ class SampleSession:
         self._next_turn_idx = 0
 
     def _append_assistant(self, msg, reasoning: str):
-        self.messages.append({
+        assistant_msg = {
             "role": "assistant",
             "content": msg.content or "",
-            "reasoning_content": reasoning,
             "tool_calls": [
                 {
                     "id": tc.id,
@@ -100,7 +179,15 @@ class SampleSession:
                 }
                 for tc in (getattr(msg, "tool_calls", None) or [])
             ] or None,
-        })
+        }
+
+        reasoning_details = _get_reasoning_details(msg) if reasoning else None
+        if reasoning_details is not None:
+            assistant_msg["reasoning_details"] = reasoning_details
+        else:
+            assistant_msg["reasoning_content"] = reasoning
+
+        self.messages.append(assistant_msg)
 
     def _generate(self):
         last_error = None
@@ -114,7 +201,7 @@ class SampleSession:
                     max_tokens=2048 * 16,
                     temperature=1.0,
                     tool_choice="auto",
-                    extra_body={"thinking": {"type": "enabled"}},
+                    extra_body={"reasoning": {"enabled": True}},
                 )
                 return response.choices[0].message
 
@@ -166,10 +253,13 @@ class SampleSession:
             
     def start(self):
         msg = self._generate()
-        reasoning = getattr(msg, "reasoning_content", None) or ""
+        reasoning = _get_reasoning_content(msg)
         self.trajectory.ground_truth_cot = reasoning
         self.trajectory.ground_truth_tokens = count_tokens(reasoning)
-        self._append_assistant(msg, reasoning)
+        self._append_assistant(
+            msg,
+            reasoning if getattr(self, "retain_reasoning_context", True) else "",
+        )
         tool_calls = getattr(msg, "tool_calls", None) or []
         
         if len(tool_calls)==0:
@@ -212,8 +302,11 @@ class SampleSession:
             "content": json.dumps(tool_result, ensure_ascii=False),
         })
         msg = self._generate()
-        reasoning = getattr(msg, "reasoning_content", None) or ""
-        self._append_assistant(msg, reasoning)
+        reasoning = _get_reasoning_content(msg)
+        self._append_assistant(
+            msg,
+            reasoning if getattr(self, "retain_reasoning_context", True) else "",
+        )
         tool_calls = getattr(msg, "tool_calls", None) or []
         
         if len(tool_calls)==0:

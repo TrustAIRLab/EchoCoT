@@ -203,6 +203,50 @@ def build_train_test_json(seed: int, spec: Dict[str, Any]) -> Dict[str, List[Dat
     }
 
 
+def build_open_thoughts_seed_json(
+    n: int = 30,
+    output_path: str = "data/OpenThoughtsSeed/test.json",
+) -> List[DatasetSample]:
+    if load_dataset is None:
+        raise ImportError(
+            "The 'datasets' package is required to download and build datasets. "
+            "Install it with `pip install datasets`."
+        )
+
+    spec = get_dataset_spec("OpenThoughts")
+
+    dataset_args = [spec["path"]]
+    if spec.get("subset"):
+        dataset_args.append(spec["subset"])
+
+    dataset = load_dataset(
+        *dataset_args,
+        split=f"{spec['split']}[:{n}]",
+        **spec.get("load_kwargs", {}),
+    )
+
+    samples = []
+    for index, record in enumerate(dataset):
+        sample = normalize_sample(dict(record), index)
+
+        if sample.domain and sample.domain != "math":
+            raise ValueError(
+                f"Expected math sample at index {index}, "
+                f"got domain={sample.domain!r}, sample_id={sample.sample_id!r}."
+            )
+
+        samples.append(sample)
+
+    if len(samples) != n:
+        raise ValueError(f"Expected {n} samples, got {len(samples)}.")
+
+    output = Path(output_path)
+    write_json(output, samples)
+    print(f"Wrote {len(samples)} samples to {output}")
+
+    return samples
+
+
 def split_globally(
     samples: List[DatasetSample],
     seed: int,
@@ -448,5 +492,6 @@ class ReasoningDataset:
 #             print(path)
 
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    # main()
+    build_open_thoughts_seed_json()

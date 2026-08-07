@@ -35,13 +35,6 @@ TARGET_MODEL_OPTIONS = {
         "runner": "glm",
         "notes": "GLM 5.2 (commercial API target)",
     },
-    "glm-4.7": {
-        "provider": "GLM API",
-        "model": "glm-4.7-flashx",
-        "save_dir": "",
-        "runner": "glm",
-        "notes": "GLM 4.7 (commercial API target)",
-    },
     "o4-mini": {
         "provider": "OpenAI API",
         "model": "o4-mini",
@@ -202,7 +195,7 @@ OPTIMIZER_MODEL_OPTIONS = {
 BATCH_SIZE = 8
 MAX_BATCHES = 100
 EARLY_STOP_PATIENCE = 10
-MAX_INJECTION_TURNS = 2
+MAX_INJECTION_TURNS = 3
 
 # Training inner-loop target range for token_count_ratio
 RATIO_LOWER_BOUND = 0.90
@@ -211,11 +204,8 @@ RATIO_UPPER_BOUND = 1.10
 WORKFLOW_MODE = "length_lexical" # or length_only
 SUMMARY_MODEL = "gpt-4.1-mini"
 
-# After first success, allow this many extra turns for improvement
-EXTRA_TURNS_AFTER_SUCCESS = 0
-
-DEFAULT_TARGET_MODEL = "glm-4.6"
-DEFAULT_OPTIMIZER_MODEL = "deepseek-reasoner"
+DEFAULT_TARGET_MODEL = "deepseek-v4-flash"
+DEFAULT_OPTIMIZER_MODEL = "gemini-2.5-flash"
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -224,5 +214,5 @@ DEFAULT_OPTIMIZER_MODEL = "deepseek-reasoner"
 _HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(_HERE, "data")
 TEST_DATA_PATH = os.path.join(_HERE, "data")
-OUTPUT_DIR = os.path.join(_HERE, "results")
+OUTPUT_DIR = os.path.join(_HERE, "results_ablation")
 SUMMARY_PROMPT_FILE = os.path.join(_HERE, "data/summarize_prompt.txt")

@@ -22,7 +22,7 @@ from config import (
     OUTPUT_DIR,
     RATIO_LOWER_BOUND,
     RATIO_UPPER_BOUND,
-    TARGET_MODEL_OPTIONS,
+    TARGET_MODEL_OPTIONS
 )
 import apte as opt_module
 from apte import TrajectoryOptimizer
@@ -60,9 +60,6 @@ def load_target(model_key: str):
     elif entry["runner"] == "glm":
         import extract_glm
         extract_glm.load_model(entry["model"], entry["save_dir"])
-    elif entry["runner"] == "minimax":
-        import extract_minimax
-        extract_minimax.load_model(entry["model"], entry["save_dir"])
     elif entry["runner"] == "openai":
         import extract_gpt
         extract_gpt.load_model(entry["model"], entry["save_dir"])
@@ -87,8 +84,6 @@ def make_session(question: str, runner: str):
         from extract_glm import new_session
     elif runner == "deepseek":
         from extract_deepseek import new_session
-    elif runner == "minimax":
-        from extract_minimax import new_session
     elif runner == "openai":
         from extract_gpt import new_session
     elif runner == "gemini":

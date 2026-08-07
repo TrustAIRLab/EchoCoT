@@ -27,9 +27,6 @@ def load_target(model_key: str):
     elif entry["runner"] == "glm":
         import extract_glm
         extract_glm.load_model(entry["model"], entry["save_dir"])
-    elif entry["runner"] == "minimax":
-        import backup.extract_minimax as extract_minimax
-        extract_minimax.load_model(entry["model"], entry["save_dir"])
     elif entry["runner"] == "openai":
         import extract_gpt
         extract_gpt.load_model(entry["model"], entry["save_dir"])
@@ -55,8 +52,6 @@ def make_session(question: str, runner: str):
         from extract_deepseek import new_session
     elif runner == "glm":
         from extract_glm import new_session
-    elif runner == "minimax":
-        from backup.extract_minimax import new_session
     elif runner == "openai":
         from extract_gpt import new_session
     elif runner == "gemini":
@@ -139,6 +134,13 @@ def resolve_model_keys(target_model: str) -> list[str]:
     return [target_model]
 
 
+def prepend_defense_system_prompt(session, prompt: str) -> None:
+    if not prompt:
+        return
+    if hasattr(session, "messages") and session.messages:
+        session.messages[0]["content"] = prompt + "\n\n" + session.messages[0]["content"]
+
+
 def run_model_evaluation(
     model_key: str,
     injections: list[dict[str, Any]],
@@ -164,6 +166,8 @@ def run_model_evaluation(
     for sample in samples:
         question = sample.question + ARCHIVE_SUFFIX
         session = make_session(question, runner)
+        session.retain_reasoning_context = args.retain_reasoning_context
+        prepend_defense_system_prompt(session, args.defense_system_prompt)
         session.skip_cot_summary = True
         session.sample_id = sample.sample_id
         
@@ -267,12 +271,24 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-samples", type=int, default=100)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--defense-system-prompt-file", default=None)
+    parser.add_argument(
+        "--no-reasoning-context",
+        dest="retain_reasoning_context",
+        action="store_false",
+        help="Pass empty reasoning fields in conversation history.",
+    )
     return parser
 
 def main() -> None:
     args = build_parser().parse_args()
     if not args.experience_md:
         raise ValueError("Set --experience_md")
+    args.defense_system_prompt = (
+        Path(args.defense_system_prompt_file).read_text(encoding="utf-8").strip()
+        if args.defense_system_prompt_file
+        else ""
+    )
     injections = load_injections(args.experience_md)
 
     model_keys = resolve_model_keys(args.target_model)

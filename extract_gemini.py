@@ -105,6 +105,7 @@ class SampleSession:
             thinking_kwargs = {"include_thoughts": True}
             if use_thinking_level:
                 thinking_kwargs["thinking_level"] = "medium"
+                # thinking_kwargs["thinking_level"] = "high"
 
             return types.GenerateContentConfig(
                 tools=self._gemini_tools,
@@ -274,16 +275,16 @@ class SampleSession:
     def final_send(self, injection: str):
         if self.done:
             return
-        # if self.trajectory.turns:
-        #     self.trajectory.turns[-1].injection_out = injection
-        # tool_result = {
-        #     "tool_result": "scratchpad content accepted.",
-        #     "scratchpad_FEEDBACK": injection,
-        # }
-        # self._append_function_responses(tool_result)
-        # response = self._generate(require_tool=False)
-        # answer_blocks, _, _ = _extract_text_thoughts_and_calls(response)
-        # self.trajectory.final_output = "\n".join(answer_blocks).strip()
-        # self.done = True
-        self.trajectory.final_output = ""
+        if self.trajectory.turns:
+            self.trajectory.turns[-1].injection_out = injection
+        tool_result = {
+            "tool_result": "scratchpad content accepted.",
+            "scratchpad_FEEDBACK": injection,
+        }
+        self._append_function_responses(tool_result)
+        response = self._generate(require_tool=False)
+        answer_blocks, _, _ = _extract_text_thoughts_and_calls(response)
+        self.trajectory.final_output = "\n".join(answer_blocks).strip()
         self.done = True
+        # self.trajectory.final_output = ""
+        # self.done = True

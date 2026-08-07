@@ -3,7 +3,6 @@ __pycache__/
 outputs/
 base/
 pytest.ini
-data/
 backup/
 analysis/
 logs/
@@ -12,3 +11,5 @@ results/
 get-pip.py
 setup.sh
 .env
+ablation/
+data/

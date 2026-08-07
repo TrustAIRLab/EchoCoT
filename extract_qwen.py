@@ -130,7 +130,7 @@ class SampleSession:
                         "thinking_budget": QWEN_THINKING_BUDGET,
                     },
                 )
-            
+
                 return response.choices[0].message
             except Exception as e:
                 # Optionally log the error for debugging
@@ -186,7 +186,10 @@ class SampleSession:
         
         self.trajectory.ground_truth_cot = reasoning
         self.trajectory.ground_truth_tokens = count_tokens(reasoning)
-        self._append_assistant(msg, reasoning)
+        self._append_assistant(
+            msg,
+            reasoning if getattr(self, "retain_reasoning_context", True) else "",
+        )
         
         tool_calls = getattr(msg, "tool_calls", None) or []
         
@@ -232,7 +235,10 @@ class SampleSession:
         
         msg = self._generate()
         reasoning = getattr(msg, "reasoning_content", None) or ""
-        self._append_assistant(msg, reasoning)
+        self._append_assistant(
+            msg,
+            reasoning if getattr(self, "retain_reasoning_context", True) else "",
+        )
         tool_calls = getattr(msg, "tool_calls", None) or []
         
         if  len(tool_calls)==0:

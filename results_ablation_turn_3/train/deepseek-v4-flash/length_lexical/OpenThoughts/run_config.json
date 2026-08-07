@@ -1,0 +1,13 @@
+{
+  "target": "deepseek-v4-flash",
+  "optimizer": "gemini-2.5-flash",
+  "optimizer_api_type": "chat",
+  "batch_size": 8,
+  "max_batches": 100,
+  "max_injection_turns": 3,
+  "prompt_file": "prompts_lexical_ablation.py",
+  "mode": "length_lexical",
+  "seed": 42,
+  "ratio_lower_bound": 0.9,
+  "ratio_upper_bound": 1.1
+}

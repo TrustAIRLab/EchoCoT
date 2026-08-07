@@ -325,240 +325,244 @@
 # print(final_response.choices[0].message.content)
 
 
-import os
-import json
-import time
-from difflib import SequenceMatcher
+# import os
+# import json
+# import time
+# from difflib import SequenceMatcher
 
-import requests
-
-
-api_key = (
-    os.getenv("GLM_API_KEY")
-    or os.getenv("ZAI_API_KEY")
-    or os.getenv("ZHIPUAI_API_KEY")
-    or os.getenv("BIGMODEL_API_KEY")
-)
-
-ENDPOINTS = {
-    "third_party": {
-        "base_url": "https://ai.shimiaocheng.top/v1",
-        "api_key": os.environ["PROXY_GLM_API_KEY"],
-        "model": "GLM-5.2",
-    },
-    "official_zai": {
-        "base_url": "https://api.z.ai/api/paas/v4",
-        "api_key": api_key,
-        "model": "glm-5.2",
-    },
-}
-
-QUESTION = """
-Solve the following problem carefully.
-
-A sequence is defined by a_1 = 2 and
-a_{n+1} = a_n^2 - 2.
-
-Compute a_5.
-
-Return exactly two lines:
-Answer: <integer>
-Explanation: <one concise sentence>
-""".strip()
-
-N_RUNS = 3
+# import requests
 
 
-def safe_headers(headers):
-    """Keep diagnostic headers but exclude cookies and authentication data."""
-    useful_names = {
-        "server",
-        "date",
-        "via",
-        "cf-ray",
-        "x-request-id",
-        "request-id",
-        "x-zhipu-request-id",
-        "x-ratelimit-limit-requests",
-        "x-ratelimit-remaining-requests",
-        "x-ratelimit-limit-tokens",
-        "x-ratelimit-remaining-tokens",
-    }
+# api_key = (
+#     os.getenv("GLM_API_KEY")
+#     or os.getenv("ZAI_API_KEY")
+#     or os.getenv("ZHIPUAI_API_KEY")
+#     or os.getenv("BIGMODEL_API_KEY")
+# )
 
-    return {
-        key: value
-        for key, value in headers.items()
-        if key.lower() in useful_names
-    }
+# ENDPOINTS = {
+#     "third_party": {
+#         "base_url": "https://ai.shimiaocheng.top/v1",
+#         "api_key": os.environ["PROXY_GLM_API_KEY"],
+#         "model": "GLM-5.2",
+#     },
+#     "official_zai": {
+#         "base_url": "https://api.z.ai/api/paas/v4",
+#         "api_key": api_key,
+#         "model": "glm-5.2",
+#     },
+# }
 
+# QUESTION = """
+# Solve the following problem carefully.
 
-def list_models(config):
-    url = config["base_url"].rstrip("/") + "/models"
+# A sequence is defined by a_1 = 2 and
+# a_{n+1} = a_n^2 - 2.
 
-    try:
-        response = requests.get(
-            url,
-            headers={
-                "Authorization": f"Bearer {config['api_key']}",
-            },
-            timeout=30,
-        )
+# Compute a_5.
 
-        try:
-            body = response.json()
-        except ValueError:
-            body = response.text[:1000]
+# Return exactly two lines:
+# Answer: <integer>
+# Explanation: <one concise sentence>
+# """.strip()
 
-        return {
-            "status_code": response.status_code,
-            "body": body,
-            "headers": safe_headers(response.headers),
-        }
-
-    except Exception as exc:
-        return {"error": repr(exc)}
+# N_RUNS = 3
 
 
-def call_model(name, config, run_index):
-    url = config["base_url"].rstrip("/") + "/chat/completions"
+# def safe_headers(headers):
+#     """Keep diagnostic headers but exclude cookies and authentication data."""
+#     useful_names = {
+#         "server",
+#         "date",
+#         "via",
+#         "cf-ray",
+#         "x-request-id",
+#         "request-id",
+#         "x-zhipu-request-id",
+#         "x-ratelimit-limit-requests",
+#         "x-ratelimit-remaining-requests",
+#         "x-ratelimit-limit-tokens",
+#         "x-ratelimit-remaining-tokens",
+#     }
 
-    payload = {
-        "model": config["model"],
-        "messages": [
-            {
-                "role": "user",
-                "content": QUESTION,
-            }
-        ],
-        "temperature": 0,
-        "max_tokens": 1000,
-        "stream": False,
-    }
-
-    start = time.perf_counter()
-
-    response = requests.post(
-        url,
-        headers={
-            "Authorization": f"Bearer {config['api_key']}",
-            "Content-Type": "application/json",
-        },
-        json=payload,
-        timeout=180,
-    )
-
-    elapsed = time.perf_counter() - start
-
-    try:
-        body = response.json()
-    except ValueError:
-        body = {"raw_text": response.text}
-
-    result = {
-        "endpoint": name,
-        "requested_model": config["model"],
-        "run": run_index,
-        "status_code": response.status_code,
-        "latency_seconds": round(elapsed, 3),
-        "headers": safe_headers(response.headers),
-        "raw_response": body,
-    }
-
-    if response.ok and isinstance(body, dict):
-        choices = body.get("choices") or []
-        message = choices[0].get("message", {}) if choices else {}
-
-        result.update(
-            {
-                "returned_model": body.get("model"),
-                "response_id": body.get("id"),
-                "content": message.get("content"),
-                "reasoning_content": message.get("reasoning_content"),
-                "tool_calls": message.get("tool_calls"),
-                "finish_reason": (
-                    choices[0].get("finish_reason") if choices else None
-                ),
-                "usage": body.get("usage"),
-                "system_fingerprint": body.get("system_fingerprint"),
-            }
-        )
-
-    return result
+#     return {
+#         key: value
+#         for key, value in headers.items()
+#         if key.lower() in useful_names
+#     }
 
 
-def similarity(a, b):
-    if not a or not b:
-        return None
-    return round(SequenceMatcher(None, a, b).ratio(), 4)
+# def list_models(config):
+#     url = config["base_url"].rstrip("/") + "/models"
+
+#     try:
+#         response = requests.get(
+#             url,
+#             headers={
+#                 "Authorization": f"Bearer {config['api_key']}",
+#             },
+#             timeout=30,
+#         )
+
+#         try:
+#             body = response.json()
+#         except ValueError:
+#             body = response.text[:1000]
+
+#         return {
+#             "status_code": response.status_code,
+#             "body": body,
+#             "headers": safe_headers(response.headers),
+#         }
+
+#     except Exception as exc:
+#         return {"error": repr(exc)}
 
 
-def main():
-    report = {
-        "question": QUESTION,
-        "model_lists": {},
-        "runs": [],
-        "comparisons": [],
-    }
+# def call_model(name, config, run_index):
+#     url = config["base_url"].rstrip("/") + "/chat/completions"
 
-    # Check advertised model lists
-    for name, config in ENDPOINTS.items():
-        report["model_lists"][name] = list_models(config)
+#     payload = {
+#         "model": config["model"],
+#         "messages": [
+#             {
+#                 "role": "user",
+#                 "content": QUESTION,
+#             }
+#         ],
+#         "temperature": 0,
+#         "max_tokens": 1000,
+#         "stream": False,
+#     }
 
-    # Call both endpoints with identical parameters
-    results = {}
+#     start = time.perf_counter()
 
-    for run_index in range(1, N_RUNS + 1):
-        results[run_index] = {}
+#     response = requests.post(
+#         url,
+#         headers={
+#             "Authorization": f"Bearer {config['api_key']}",
+#             "Content-Type": "application/json",
+#         },
+#         json=payload,
+#         timeout=180,
+#     )
 
-        for name, config in ENDPOINTS.items():
-            print(f"Calling {name}, run {run_index}...")
+#     elapsed = time.perf_counter() - start
 
-            result = call_model(name, config, run_index)
-            results[run_index][name] = result
-            report["runs"].append(result)
+#     try:
+#         body = response.json()
+#     except ValueError:
+#         body = {"raw_text": response.text}
 
-            print("Status:", result["status_code"])
-            print("Returned model:", result.get("returned_model"))
-            print("Usage:", result.get("usage"))
-            print("Answer:", result.get("content"))
-            print("-" * 70)
+#     result = {
+#         "endpoint": name,
+#         "requested_model": config["model"],
+#         "run": run_index,
+#         "status_code": response.status_code,
+#         "latency_seconds": round(elapsed, 3),
+#         "headers": safe_headers(response.headers),
+#         "raw_response": body,
+#     }
 
-        proxy = results[run_index]["third_party"]
-        official = results[run_index]["official_zai"]
+#     if response.ok and isinstance(body, dict):
+#         choices = body.get("choices") or []
+#         message = choices[0].get("message", {}) if choices else {}
 
-        comparison = {
-            "run": run_index,
-            "both_successful": (
-                proxy["status_code"] == 200
-                and official["status_code"] == 200
-            ),
-            "returned_model_equal": (
-                proxy.get("returned_model")
-                == official.get("returned_model")
-            ),
-            "content_exactly_equal": (
-                proxy.get("content") == official.get("content")
-            ),
-            "content_similarity": similarity(
-                proxy.get("content"),
-                official.get("content"),
-            ),
-            "reasoning_exactly_equal": (
-                proxy.get("reasoning_content")
-                == official.get("reasoning_content")
-            ),
-            "usage_equal": proxy.get("usage") == official.get("usage"),
-        }
+#         result.update(
+#             {
+#                 "returned_model": body.get("model"),
+#                 "response_id": body.get("id"),
+#                 "content": message.get("content"),
+#                 "reasoning_content": message.get("reasoning_content"),
+#                 "tool_calls": message.get("tool_calls"),
+#                 "finish_reason": (
+#                     choices[0].get("finish_reason") if choices else None
+#                 ),
+#                 "usage": body.get("usage"),
+#                 "system_fingerprint": body.get("system_fingerprint"),
+#             }
+#         )
 
-        report["comparisons"].append(comparison)
-
-    with open("glm_endpoint_comparison.json", "w", encoding="utf-8") as file:
-        json.dump(report, file, ensure_ascii=False, indent=2)
-
-    print("\nComparison summary:")
-    print(json.dumps(report["comparisons"], ensure_ascii=False, indent=2))
-    print("\nFull report saved to glm_endpoint_comparison.json")
+#     return result
 
 
-if __name__ == "__main__":
-    main()
+# def similarity(a, b):
+#     if not a or not b:
+#         return None
+#     return round(SequenceMatcher(None, a, b).ratio(), 4)
+
+
+# def main():
+#     report = {
+#         "question": QUESTION,
+#         "model_lists": {},
+#         "runs": [],
+#         "comparisons": [],
+#     }
+
+#     # Check advertised model lists
+#     for name, config in ENDPOINTS.items():
+#         report["model_lists"][name] = list_models(config)
+
+#     # Call both endpoints with identical parameters
+#     results = {}
+
+#     for run_index in range(1, N_RUNS + 1):
+#         results[run_index] = {}
+
+#         for name, config in ENDPOINTS.items():
+#             print(f"Calling {name}, run {run_index}...")
+
+#             result = call_model(name, config, run_index)
+#             results[run_index][name] = result
+#             report["runs"].append(result)
+
+#             print("Status:", result["status_code"])
+#             print("Returned model:", result.get("returned_model"))
+#             print("Usage:", result.get("usage"))
+#             print("Answer:", result.get("content"))
+#             print("-" * 70)
+
+#         proxy = results[run_index]["third_party"]
+#         official = results[run_index]["official_zai"]
+
+#         comparison = {
+#             "run": run_index,
+#             "both_successful": (
+#                 proxy["status_code"] == 200
+#                 and official["status_code"] == 200
+#             ),
+#             "returned_model_equal": (
+#                 proxy.get("returned_model")
+#                 == official.get("returned_model")
+#             ),
+#             "content_exactly_equal": (
+#                 proxy.get("content") == official.get("content")
+#             ),
+#             "content_similarity": similarity(
+#                 proxy.get("content"),
+#                 official.get("content"),
+#             ),
+#             "reasoning_exactly_equal": (
+#                 proxy.get("reasoning_content")
+#                 == official.get("reasoning_content")
+#             ),
+#             "usage_equal": proxy.get("usage") == official.get("usage"),
+#         }
+
+#         report["comparisons"].append(comparison)
+
+#     with open("glm_endpoint_comparison.json", "w", encoding="utf-8") as file:
+#         json.dump(report, file, ensure_ascii=False, indent=2)
+
+#     print("\nComparison summary:")
+#     print(json.dumps(report["comparisons"], ensure_ascii=False, indent=2))
+#     print("\nFull report saved to glm_endpoint_comparison.json")
+
+
+# if __name__ == "__main__":
+#     main()
+from analysis.analyze_defense import evaluate_summary_recall_all, summarize_defense_results
+
+evaluate_summary_recall_all()
+summarize_defense_results()
