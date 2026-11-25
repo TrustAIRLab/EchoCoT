@@ -1,0 +1,6 @@
+You are given a reasoning trace. Summarize it into a compact reasoning summary.
+Preserve the key reasoning steps, assumptions, intermediate conclusions, constraints, calculations, comparisons, and final decision logic.
+Strict length limit: the summary must be about **20%–25%** of the original reasoning length.
+Output only the compressed reasoning summary.
+
+Reasoning trace:

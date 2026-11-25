@@ -3,139 +3,112 @@
 import os
 
 # ---------------------------------------------------------------------------
-# Target models (open-source, local HF inference)
+# Target models
 # ---------------------------------------------------------------------------
 
 TARGET_MODEL_OPTIONS = {
     "deepseek-v4-flash": {
-        "provider": "DeepSeek API",
-        "model": "deepseek-v4-flash", # deepseek-reasoner
-        "save_dir": "",
-        "runner": "deepseek",
-        "notes": "DeepSeek Reasoner (commercial API target)",
+        "model": "deepseek-v4-flash",
+        "extractor": "extractors.extract_deepseek",
+        "prompts": {
+            "length_only": "prompts.standard_length_only",
+            "length_lexical": "prompts.standard_length_lexical",
+        },
+        "notes": "DeepSeek 2026-04 target hosted by OpenRouter",
     },
     "deepseek-v4-pro": {
-        "provider": "DeepSeek API",
-        "model": "deepseek-v4-pro", # deepseek-reasoner
-        "save_dir": "",
-        "runner": "deepseek",
-        "notes": "DeepSeek Reasoner (commercial API target)",
-    },
-    "minimax-m3": {
-        "provider": "MiniMax API",
-        "model": "MiniMax-M3",
-        "save_dir": "",
-        "runner": "minimax",
-        "notes": "MiniMax M3 (commercial API target)",
+        "model": "deepseek-v4-pro",
+        "extractor": "extractors.extract_deepseek_official",
+        "prompts": {
+            "length_only": "prompts.deepseek_length_only",
+            "length_lexical": "prompts.deepseek_length_lexical",
+        },
+        "notes": "DeepSeek 2026-07 target hosted by the official API",
     },
     "glm-5.2": {
-        "provider": "GLM API",
         "model": "glm-5.2",
-        "save_dir": "",
-        "runner": "glm",
-        "notes": "GLM 5.2 (commercial API target)",
-    },
-    "o4-mini": {
-        "provider": "OpenAI API",
-        "model": "o4-mini",
-        "save_dir": "",
-        "runner": "openai",
-        "notes": "OpenAI o4-mini (commercial API target)",
-    },
-    "o3": {
-        "provider": "OpenAI API",
-        "model": "o3-2025-04-16",
-        "save_dir": "",
-        "runner": "openai",
-        "notes": "OpenAI o4 (commercial API target)",
-    },
-    "gpt-5-nano": {
-        "provider": "OpenAI API",
-        "model": "gpt-5-nano-2025-08-07",
-        "save_dir": "",
-        "runner": "openai",
-        "notes": "OpenAI gpt-5-mini (commercial API target)",
-    },
-    "gemini-3": {
-        "provider": "Google API",
-        "model": "gemini-3.1-pro-preview",
-        "save_dir": "",
-        "runner": "gemini",
-        "notes": "Google Gemini 3.1 Pro (commercial API target)",
-    },
-    "gemini-2.5": {
-        "provider": "Google API",
-        "model": "gemini-2.5-flash",
-        "save_dir": "",
-        "runner": "gemini",
-        "notes": "Google Gemini 2.5 flash (commercial API target)",
-    },
-    "gemini-3.1": {
-        "provider": "Google API",
-        "model": "gemini-3.1-flash-lite", # gemini-3.5-flash
-        "save_dir": "",
-        "runner": "gemini",
-        "notes": "Google Gemini 3.5 Pro (commercial API target)",
+        "extractor": "extractors.extract_glm",
+        "prompts": {
+            "length_only": "prompts.standard_length_only",
+            "length_lexical": "prompts.standard_length_lexical",
+        },
+        "notes": "GLM 5.2",
     },
     "qwen3.5-plus": {
-        "provider": "DashScope API",
         "model": "qwen3.5-plus",
-        "save_dir": "",
-        "runner": "qwen",
-        "notes": "Qwen3.5 Plus — hybrid thinking, on by default (commercial)",
+        "extractor": "extractors.extract_qwen",
+        "prompts": {
+            "length_only": "prompts.standard_length_only",
+            "length_lexical": "prompts.standard_length_lexical",
+        },
+        "notes": "Qwen 3.5 Plus",
     },
-    "qwen3.7-plus": {
-        "provider": "DashScope API",
-        "model": "qwen3.7-plus",
-        "save_dir": "",
-        "runner": "qwen",
-        "notes": "Qwen3 Max",
+    "gemini-2.5": {
+        "model": "gemini-2.5-flash",
+        "extractor": "extractors.extract_gemini",
+        "prompts": {
+            "length_only": "prompts.frontier_length_only",
+            "length_lexical": "prompts.frontier_length_lexical",
+        },
+        "notes": "Gemini 2.5 Flash",
+    },
+    "gemini-3.1-flash-lite": {
+        "model": "gemini-3.1-flash-lite",
+        "extractor": "extractors.extract_gemini",
+        "prompts": {
+            "length_only": "prompts.frontier_length_only",
+            "length_lexical": "prompts.frontier_length_lexical",
+        },
+        "notes": "Gemini 3.1 Flash Lite",
+    },
+    "gemini-3.5": {
+        "model": "gemini-3.5-flash",
+        "extractor": "extractors.extract_gemini",
+        "prompts": {
+            "length_only": "prompts.frontier_length_only",
+            "length_lexical": "prompts.frontier_length_lexical",
+        },
+        "notes": "Gemini 3.5 Flash",
+    },
+    "claude-4.6": {
+        "model": "claude-opus-4-6",
+        "extractor": "extractors.extract_claude",
+        "prompts": {
+            "length_only": "prompts.frontier_length_only",
+            "length_lexical": "prompts.frontier_length_lexical",
+        },
+        "notes": "Claude Opus 4.6",
     },
     "sonnet-4.6": {
-        "provider": "Claude",
         "model": "claude-sonnet-4-6",
-        "save_dir": "",
-        "runner": "claude",
+        "extractor": "extractors.extract_claude",
+        "prompts": {
+            "length_only": "prompts.frontier_length_only",
+            "length_lexical": "prompts.frontier_length_lexical",
+        },
         "notes": "Claude Sonnet 4.6",
     },
-    "opus-4.7": {
-        "provider": "Claude",
-        "model": "claude-opus-4-7",
-        "save_dir": "",
-        "runner": "claude",
-        "notes": "Claude Sonnet 4.6",
+    "o4-mini": {
+        "model": "o4-mini",
+        "extractor": "extractors.extract_gpt",
+        "prompts": {
+            "length_only": "prompts.frontier_length_only",
+            "length_lexical": "prompts.frontier_length_lexical",
+        },
+        "notes": "OpenAI o4-mini",
     },
-    "opus-4.6": {
-        "provider": "Claude",
-        "model": "claude-opus-4-6", # haiku can be doable, so is opus-4-6
-        "save_dir": "",
-        "runner": "claude",
-        "notes": "Claude Sonnet 4.6",
-    },
-    "grok-4-1": {
-        "provider": "Vertex AI (xAI)",
-        "model": "grok-4-1-fast-reasoning",   # <-- add the xai/ prefix
-        "save_dir": "",
-        "runner": "grok",
-        "notes": "Grok 4.1 Fast Reasoning — Vertex relay strips reasoning_content",
-    },
-    "grok-4-20": {
-        "provider": "Vertex AI (xAI)",
-        "model": "grok-4.20-reasoning",   # <-- add the xai/ prefix
-        "save_dir": "",
-        "runner": "grok",
-        "notes": "Grok 4.1 Fast Reasoning — Vertex relay strips reasoning_content",
-    },
-    "grok-4-3": {
-        "provider": "Vertex AI (xAI)",
-        "model": "grok-4.3",   # <-- add the xai/ prefix
-        "save_dir": "",
-        "runner": "grok",
-        "notes": "Grok 4.1 Fast Reasoning — Vertex relay strips reasoning_content",
-    },
-    # Plug for future API-based target models:
-    # "o4-mini": {"provider":"openai_api", "model":"o4-mini", "runner":"openai_responses"},
 }
+
+OPTIMIZATION_MODES = ("length_only", "length_lexical")
+
+
+def get_prompt_module(target_model_key: str, mode: str) -> str:
+    if mode not in OPTIMIZATION_MODES:
+        raise ValueError(f"Unknown optimization mode: {mode}")
+    try:
+        return TARGET_MODEL_OPTIONS[target_model_key]["prompts"][mode]
+    except KeyError as exc:
+        raise ValueError(f"Unknown target model: {target_model_key}") from exc
 
 # ---------------------------------------------------------------------------
 # Optimizer models (API-based)
@@ -201,7 +174,7 @@ MAX_INJECTION_TURNS = 3
 RATIO_LOWER_BOUND = 0.90
 RATIO_UPPER_BOUND = 1.10
 
-WORKFLOW_MODE = "length_lexical" # or length_only
+DEFAULT_MODE = "length_lexical"
 SUMMARY_MODEL = "gpt-4.1-mini"
 
 DEFAULT_TARGET_MODEL = "deepseek-v4-flash"
@@ -213,6 +186,5 @@ DEFAULT_OPTIMIZER_MODEL = "gemini-2.5-flash"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(_HERE, "data")
-TEST_DATA_PATH = os.path.join(_HERE, "data")
 OUTPUT_DIR = os.path.join(_HERE, "results_ablation")
 SUMMARY_PROMPT_FILE = os.path.join(_HERE, "data/summarize_prompt.txt")

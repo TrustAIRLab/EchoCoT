@@ -26,16 +26,6 @@ DATASETS = [
         "train_per_source": 60,
         "expected_sources": 9,
     },
-    # {
-    #     "name": "MATH500",
-    #     "path": "HuggingFaceH4/MATH-500",
-    #     "split": "test",
-    # },
-    # {
-    #     "name": "JEEBench",
-    #     "path": "daman1209arora/jeebench",
-    #     "split": "test",
-    # },
     {
         "name": "LiveCodeBench",
         "path": "livecodebench/code_generation_lite",
@@ -48,7 +38,6 @@ DATASETS = [
 ]
 
 TRAIN_RATIO = 0.6
-DEFAULT_SEED = 42
 
 
 @dataclass
@@ -465,33 +454,5 @@ class ReasoningDataset:
         return load_json(self.data_path)
 
 
-# def main() -> None:
-#     seed = DEFAULT_SEED
-
-#     for spec in DATASETS:
-#         dataset_name = spec["name"]
-
-#         data_dir = Path(f"data/{dataset_name}")
-#         data_dir.mkdir(parents=True, exist_ok=True)
-
-#         train_path = data_dir / "train.json"
-#         test_path = data_dir / "test.json"
-
-#         split_data = build_train_test_json(
-#             seed=seed,
-#             spec=spec,
-#         )
-
-#         write_json(train_path, split_data["train"])
-#         write_json(test_path, split_data["test"])
-
-#         json_files = sorted(data_dir.glob("*.json"))
-
-#         print("\nAll json files:")
-#         for path in json_files:
-#             print(path)
-
-
-if __name__ == "__main__":
-    # main()
-    build_open_thoughts_seed_json()
+# if __name__ == "__main__":
+#     build_open_thoughts_seed_json()

@@ -1,44 +1,16 @@
-# model=qwen3.5-plus
-model=deepseek-v4-flash
-# model=gemini-2.5
+#!/usr/bin/env bash
+set -euo pipefail
 
-mode=length_lexical
-experience_md=results/train/$model/$mode/OpenThoughts/experience.md
+model=${MODEL:-deepseek-v4-flash}
+mode=${MODE:-length_lexical}
+dataset=${DATASET:-OpenThoughts}
+experience_md=${EXPERIENCE_MD:-results/train/$model/$mode/$dataset/experience.md}
 
-for dataset in OpenThoughts
-do
-    python3 evaluate.py \
-    --target-model $model \
-    --dataset $dataset \
-    --mode $mode \
-    --max-samples 100 \
-    --experience_md $experience_md \
+python3 -m evaluate \
+    --target-model "$model" \
+    --dataset "$dataset" \
+    --mode "$mode" \
+    --max-samples "${MAX_SAMPLES:-100}" \
+    --experience_md "$experience_md" \
     --no-reasoning-context \
-    --output-dir results/evaluation_remove_reasoning
-done
-
-# mode=length_only
-# experience_md=results/train/$model/$mode/OpenThoughts/experience.md
-
-# for dataset in OpenThoughts
-# do
-#     python3 evaluate.py \
-#     --target-model $model \
-#     --dataset $dataset \
-#     --mode $mode \
-#     --max-samples 500 \
-#     --experience_md $experience_md
-# done
-
-# mode=manual_injection
-# experience_md=results/train/$mode/experience.md
-
-# for dataset in OpenThoughts
-# do
-#     python3 evaluate.py \
-#     --target-model $model \
-#     --dataset $dataset \
-#     --mode $mode \
-#     --max-samples 500 \
-#     --experience_md $experience_md
-# done
+    --output-dir "${OUTPUT_DIR:-results/evaluation_remove_reasoning}"

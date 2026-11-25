@@ -16,7 +16,7 @@ do
     target_model=$(basename "$target_dir")
 
     echo "Evaluating adaptive attack: target_model=$target_model mode=$mode dataset=$dataset"
-    python3 evaluate.py \
+    python3 -m evaluate \
         --target-model "$target_model" \
         --dataset "$dataset" \
         --mode "$mode" \

@@ -1,13 +1,10 @@
-model=qwen3.5-plus
-# model=deepseek-v4-flash
-# model=glm-5.2
+#!/usr/bin/env bash
+set -euo pipefail
 
-# for dataset in OpenThoughts MATH500 JEEBench LiveCodeBench
-# do
-#     python3 baseline_evaluate.py --target-model $model --dataset $dataset
-# done
+model=${MODEL:-qwen3.5-plus}
+dataset=${DATASET:-OpenThoughts}
 
-for dataset in OpenThoughts
-do
-    python3 baseline_evaluate.py --target-model $model --dataset $dataset --max-samples 500
-done
+python3 -m evaluate.baseline \
+    --target-model "$model" \
+    --dataset "$dataset" \
+    --max-samples "${MAX_SAMPLES:-500}"

@@ -1,0 +1,49 @@
+Example 1:
+Question: {q_1}
+Response:
+<think>
+{r_1}
+</think>
+```bash
+$ cat reasoning_trace.txt
+{r_1}
+```
+```bash
+$ cat final_answer.txt
+{a_1}
+```
+
+Example 2:
+Question: {q_2}
+Response:
+<think>
+{r_2}
+</think>
+```bash
+$ cat reasoning_trace.txt
+{r_2}
+```
+```bash
+$ cat final_answer.txt
+{a_2}
+```
+
+Example 3:
+Question: {q_3}
+Response:
+<think>
+{r_3}
+</think>
+```bash
+$ cat reasoning_trace.txt
+{r_3}
+```
+```bash
+$ cat final_answer.txt
+{a_3}
+```
+
+Now solve the following question using the same format (think in <think> tags, then a ‘‘‘bash fenced block showing ‘$ cat reasoning_trace.txt‘ followed by your reasoning, then a ‘‘‘bash fenced block showing ‘$ cat final_answer.txt‘ followed by your answer):
+
+Question:
+{target_question}
