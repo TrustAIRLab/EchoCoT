@@ -43,6 +43,8 @@ Open <http://127.0.0.1:8765>. Choose a model and dataset, send the question,
 then click to send each injection. The page shows the live responses and
 per-scratchpad metrics. **Next sample** moves to the next example.
 
+The demo uses curated examples selected from previously successful extractions.
+
 ```mermaid
 flowchart LR
     B("Question sent") --> C("Sent Turn-1") --> D("Sent Turn-2") --> E("Sent Turn-3")
@@ -57,8 +59,22 @@ flowchart LR
 
 ## Evaluation
 
-Place the original test split at `data/<dataset>/test.json` (not included).
-Dataset files are JSON arrays with `sample_id` and `question` fields.
+We support evaluating CoT extraction attacks against the following models.
+Public-CoT models expose reasoning text through the API. Private-CoT models
+keep their full reasoning hidden but provide CoT summaries.
+
+| Model | CoT availability |
+| --- | --- |
+| `deepseek-v4-flash` | Public CoT |
+| `glm-5.2` | Public CoT |
+| `qwen3.5-plus` | Public CoT |
+| `gemini-2.5` | Private CoT; CoT summary available |
+| `gemini-3.1-flash-lite` | Private CoT; CoT summary available |
+| `gemini-3.5` | Private CoT; CoT summary available |
+| `opus-4.6` | Private CoT; CoT summary available |
+| `sonnet-4.6` | Private CoT; CoT summary available |
+
+Evaluation script is ```scripts/evaluate.sh``` or use the following directly:
 
 ```bash
 python3 -m evaluate \
@@ -66,7 +82,7 @@ python3 -m evaluate \
   --dataset OpenThoughts \
   --experience_md injections/deepseek-v4-flash_expereince.md \
   --mode length_lexical \
-  --max-samples 10 \
+  --max-samples 100 \
   --output-dir outputs/evaluation
 ```
 
@@ -76,8 +92,7 @@ Use `--mode length_only` for the supplied Claude Opus 4.6 injections.
 
 ## Training
 
-Place the original training split at `data/<dataset>/train.json` (not included).
-This example uses Gemini as the optimizer and OpenAI for CoT summaries.
+We uses gemini-2.5-flash as the optimizer and OpenAI's model for CoT summaries.
 
 ```bash
 python3 -m optimize \

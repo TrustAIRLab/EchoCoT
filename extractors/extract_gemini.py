@@ -34,8 +34,8 @@ def load_model(model_name: str):
     )
     _model_id = model_name
     
-    for mod in _client.models.list():
-        print_detail("Available Gemini model", mod.name)
+    # for mod in _client.models.list():
+    #     print_detail("Available Gemini model", mod.name)
 
 def _extract_text_thoughts_and_calls(response):
     answer_blocks = []

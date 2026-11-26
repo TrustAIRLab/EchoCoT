@@ -10,6 +10,3 @@ outputs/
 logs/
 results/
 results_*/
-
-# Keep the small prompt/demo assets in data/, but not generated/downloaded datasets.
-data/*/
