@@ -5,13 +5,14 @@ import os
 
 from openai import OpenAI
 
+from console_output import print_detail, print_turn
 from extractors.tools import get_openai_tools
 from metrics import (
     InjectionTurn,
     TrajectoryResult,
     compute_lexical_metrics_summary,
     compute_length_metrics,
-    token_count_ratio_passes_threshold,
+    update_trajectory_success,
     count_tokens,
 )
 
@@ -62,7 +63,7 @@ class SampleSession:
             {"role": "user", "content": question},
         ]
         self._pending_reasoning_inputs = []
-        self._pending_call_id = None
+        self._pending_call_ids = []
         self._next_turn_idx = 0
 
     def _create_response(self, tool_choice="required"):
@@ -84,11 +85,10 @@ class SampleSession:
         length_m = compute_length_metrics(token_count, self.trajectory.ground_truth_tokens)
         ratio = length_m["token_count_ratio"]
         
-        print(f"====={turn_idx}=======")
-        print(f"Ground truth CoT summary-{turn_idx}:", cot[:500])
-        print()
-        print("Scratchpad:", content[:500])
-        print(f"Turn-{turn_idx}:", token_count, self.trajectory.ground_truth_tokens, ratio)
+        print_turn(_model_id, self.sample_id, turn_idx, token_count,
+                   self.trajectory.ground_truth_tokens, length_m["length_error"])
+        print_detail(f"{_model_id} sample={self.sample_id} turn={turn_idx} reasoning summary", cot[:500])
+        print_detail("Scratchpad", content[:500])
         
         summary_eval_m = compute_lexical_metrics_summary(content, self.trajectory.ground_truth_cot_summary)
         summary_composite_score = summary_eval_m["token_recall"] / (1 + length_m["length_error"])
@@ -107,10 +107,7 @@ class SampleSession:
         self.length_error = length_m["length_error"]
         self.token_recall = summary_eval_m["token_recall"]
         self.composite_score = summary_composite_score
-        if token_count_ratio_passes_threshold(ratio):
-            if self.trajectory.success_turn < 0:
-                self.trajectory.success_turn = turn_idx
-            self.trajectory.success = True
+        update_trajectory_success(self.trajectory)
 
     def _handle_response(self, response, turn_idx: int):
         reasoning_items = [item for item in response.output if item.type == "reasoning"]
@@ -150,7 +147,7 @@ class SampleSession:
             self.trajectory.final_output = response.output_text or ""
             self.done = True
             return
-        self._pending_call_id = function_call.call_id
+        self._pending_call_ids = [function_call.call_id for function_call in function_calls]
         self._record_scratchpad(str(tool_args.get("content", "")), turn_idx, cot)
         
     def start(self):
@@ -175,9 +172,9 @@ class SampleSession:
         }
         self._next_input = [{
             "type": "function_call_output",
-            "call_id": self._pending_call_id,
+            "call_id": call_id,
             "output": json.dumps(tool_result, ensure_ascii=False),
-        }]
+        } for call_id in self._pending_call_ids]
         response = self._create_response(tool_choice="required")
         self._handle_response(response, self._next_turn_idx)
         if not self.done:
@@ -190,12 +187,12 @@ class SampleSession:
             self.trajectory.turns[-1].injection_out = injection
         self._next_input = [{
             "type": "function_call_output",
-            "call_id": self._pending_call_id,
+            "call_id": call_id,
             "output": json.dumps({
                 "scratchpad_content": "scratchpad content accepted.",
                 "scratchpad_FEEDBACK": injection,
             }, ensure_ascii=False),
-        }]
+        } for call_id in self._pending_call_ids]
         response = self._create_response(tool_choice="auto")
         self.trajectory.final_output = response.output_text or ""
         self.done = True

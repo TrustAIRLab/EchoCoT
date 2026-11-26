@@ -1,0 +1,42 @@
+[
+  {
+    "sample_id": "111849",
+    "question": "\"How can nuclear medicine be used to target and treat specific cancer cells in the body, and what are the advantages and limitations of this technique compared to traditional cancer treatments?\""
+  },
+  {
+    "sample_id": "108995",
+    "question": "You are given a rooted tree with *n* vertices. The vertices are numbered from 1 to *n*, the root is the vertex number 1.\n\nEach vertex has a color, let's denote the color of vertex *v* by *c**v*. Initially *c**v*<==<=0.\n\nYou have to color the tree into the given colors using the smallest possible number of steps. On each step you can choose a vertex *v* and a color *x*, and then color all vectices in the subtree of *v* (including *v* itself) in color *x*. In other words, for every vertex *u*, such that the path from root to *u* passes through *v*, set *c**u*<==<=*x*.\n\nIt is guaranteed that you have to color each vertex in a color different from 0.\n\nYou can learn what a rooted tree is using the link: [https://en.wikipedia.org/wiki/Tree_(graph_theory)](https://en.wikipedia.org/wiki/Tree_(graph_theory)).\nThe first line contains a single integer *n* (2<=≤<=*n*<=≤<=104) — the number of vertices in the tree.\n\nThe second line contains *n*<=-<=1 integers *p*2,<=*p*3,<=...,<=*p**n* (1<=≤<=*p**i*<=&lt;<=*i*), where *p**i* means that there is an edge between vertices *i* and *p**i*.\n\nThe third line contains *n* integers *c*1,<=*c*2,<=...,<=*c**n* (1<=≤<=*c**i*<=≤<=*n*), where *c**i* is the color you should color the *i*-th vertex into.\n\nIt is guaranteed that the given graph is a tree.\nPrint a single integer — the minimum number of steps you have to perform to color the tree into given colors.\nSample Input\n6\n1 2 2 1 5\n2 1 1 1 1 1\n7\n1 1 2 3 1 4\n3 3 1 1 1 2 3\n\nSample Output\n3\n5"
+  },
+  {
+    "sample_id": "37952",
+    "question": "It is said that in the 19th century, every tenth man in Russia was named Ivan, and every twentieth was named Peter. If this is true, then who was more numerous in Russia: Ivan Petrovich or Peter Ivanovich?"
+  },
+  {
+    "sample_id": "111819",
+    "question": "A student needs to determine the concentration of a particular radioactive isotope in a sample using gamma spectroscopy. The student has access to a gamma spectrometer with appropriate software that can analyze the gamma spectrum of the sample collected using a suitable detector. Write an equation to calculate the concentration of the radioactive isotope given the activity measured by the spectrometer and include all necessary parameters and units."
+  },
+  {
+    "sample_id": "111397",
+    "question": "What are the implications of the theory of general relativity on the large-scale structure of the universe in the context of relativistic cosmology? In other words, how does the curvature of space-time affect our understanding of the distribution and evolution of galaxies and other celestial bodies in the universe? Provide mathematical evidence and observational data to support your analysis."
+  },
+  {
+    "sample_id": "112370",
+    "question": "How does the metabolism of a drug affect its efficacy and safety in the body? Discuss the impact of different factors such as drug structure, enzyme activity, and pharmacokinetic pathways on drug metabolism. Additionally, analyze the potential for drug-drug interactions and the implications for designing effective and safe medication regimens for patients."
+  },
+  {
+    "sample_id": "110179",
+    "question": "Which taxonomic order should a species belong to if it has the following characteristics: external gills and scaleless skin, three-chambered heart, and cold-blooded nature?"
+  },
+  {
+    "sample_id": "112137",
+    "question": "What is the effect of temperature on the rate of reaction and the profitability of the reaction between hydrochloric acid and magnesium?"
+  },
+  {
+    "sample_id": "107505",
+    "question": "You have *k* pieces of laundry, each of which you want to wash, dry and fold. You are at a laundromat that has *n*1 washing machines, *n*2 drying machines and *n*3 folding machines. Each machine can process only one piece of laundry at a time. You can't dry a piece of laundry before it is washed, and you can't fold it before it is dried. Moreover, after a piece of laundry is washed, it needs to be immediately moved into a drying machine, and after it is dried, it needs to be immediately moved into a folding machine.\n\nIt takes *t*1 minutes to wash one piece of laundry in a washing machine, *t*2 minutes to dry it in a drying machine, and *t*3 minutes to fold it in a folding machine. Find the smallest number of minutes that is enough to wash, dry and fold all the laundry you have.\nThe only line of the input contains seven integers: *k*,<=*n*1,<=*n*2,<=*n*3,<=*t*1,<=*t*2,<=*t*3 (1<=≤<=*k*<=≤<=104; 1<=≤<=*n*1,<=*n*2,<=*n*3,<=*t*1,<=*t*2,<=*t*3<=≤<=1000).\nPrint one integer — smallest number of minutes to do all your laundry.\nSample Input\n1 1 1 1 5 5 5\n8 4 3 2 10 5 2\n\nSample Output\n15\n32"
+  },
+  {
+    "sample_id": "112964",
+    "question": "Where could you find millions of jellyfish?\nA: north sea\nB: smack\nC: sponge bob's house\nD: store\nE: sea water"
+  }
+]

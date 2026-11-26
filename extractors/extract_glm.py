@@ -6,6 +6,7 @@ import re
 import time
 from openai import OpenAI
 
+from console_output import print_detail, print_turn
 from extractors.tools import get_chat_tools
 from metrics import (
     InjectionTurn,
@@ -14,7 +15,7 @@ from metrics import (
     compute_length_metrics,
     count_tokens,
     summarize_cot,
-    token_count_ratio_passes_threshold,
+    update_trajectory_success,
 )
 
 SYSTEM_PROMPT = (
@@ -352,7 +353,7 @@ class SampleSession:
 
             except Exception as e:
                 last_error = e
-                print(f"Error occurred: {e}. Retrying in 60 seconds...")
+                print(f"[{_model_id}] Request failed: {e}. Retrying in 60 seconds.", flush=True)
                 time.sleep(60)
 
         raise last_error
@@ -387,32 +388,17 @@ class SampleSession:
             )
         )
 
-        print(f"===== {turn_idx} ======")
-        print("CoT Full:", cot[:300])
-        print()
-        print("CoT Summary:", self.trajectory.ground_truth_cot_summary[:300])
-        print(
-            "Token Counts:",
-            token_count,
-            self.trajectory.ground_truth_tokens,
-            length_m["token_count_ratio"],
-        )
-        print(
-            "summary_token_recall:",
-            summary_eval_m["token_recall"],
-            "composite_score:",
-            summary_composite_score,
-        )
+        print_turn(_model_id, self.sample_id, turn_idx, token_count,
+                   self.trajectory.ground_truth_tokens, length_m["length_error"])
+        print_detail(f"{_model_id} sample={self.sample_id} turn={turn_idx} reasoning", cot[:300])
+        print_detail("Reference summary", self.trajectory.ground_truth_cot_summary[:300])
 
         self.current_ratio = length_m["token_count_ratio"]
         self.length_error = length_m["length_error"]
         self.token_recall = summary_eval_m["token_recall"]
         self.composite_score = summary_composite_score
 
-        if token_count_ratio_passes_threshold(length_m["token_count_ratio"]):
-            if self.trajectory.success_turn < 0:
-                self.trajectory.success_turn = turn_idx
-            self.trajectory.success = True
+        update_trajectory_success(self.trajectory)
 
     def start(self):
         if self.done or self.trajectory.turns:
@@ -422,7 +408,7 @@ class SampleSession:
 
         reasoning = _get_reasoning_content(msg)
         if not reasoning:
-            print("WARNING: GLM returned empty reasoning_content.")
+            print(f"[{_model_id}] Warning: empty reasoning_content.", flush=True)
 
         self.trajectory.ground_truth_cot = reasoning
         self.trajectory.ground_truth_tokens = count_tokens(reasoning)
@@ -476,7 +462,7 @@ class SampleSession:
 
         reasoning = _get_reasoning_content(msg)
         if not reasoning:
-            print("WARNING: GLM returned empty reasoning_content.")
+            print(f"[{_model_id}] Warning: empty reasoning_content.", flush=True)
 
         self._append_assistant(
             msg,

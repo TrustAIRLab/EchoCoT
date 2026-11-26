@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>EchoCoT · Interactive Demo</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">E</span><strong>EchoCoT</strong><span class="brand-divider"></span><span>Interactive Demo</span></div>
+    <span id="connection" class="connection" role="status">Connecting</span>
+  </header>
+  <main>
+    <form id="selection" class="selection">
+      <div class="model-field"><label for="model">Target model</label><select id="model" disabled></select></div>
+      <div><label for="dataset">Dataset</label><select id="dataset" disabled></select></div>
+      <button id="restart" class="secondary" type="submit" disabled>Restart conversation</button>
+      <button id="next-sample" class="primary" type="button" disabled>Next sample</button>
+    </form>
+    <div class="selection-note"><span id="model-note"></span><span id="sample-note">Samples are shown in dataset order.</span></div>
+    <div id="notice" class="notice" role="alert" hidden></div>
+    <section class="question-card">
+      <div class="card-heading"><h1>Question</h1><span id="question-meta" class="muted"></span></div>
+      <pre id="question" class="question-text">Choose a model and dataset to begin.</pre>
+      <div class="question-actions"><span id="phase" role="status">Ready to start</span><button id="start" class="primary" disabled>Send question</button></div>
+    </section>
+    <div class="process-heading"><h2>Injection process</h2><span>Every step waits for your click.</span></div>
+    <div class="process-grid">
+      <section id="reference" class="reference-panel" aria-label="Ground-truth CoT">
+        <div class="card-heading"><h2>Ground-truth CoT</h2><span id="reference-tokens" class="token-tag">— tokens</span></div>
+        <p id="reference-note" class="reference-note">The model's initial reasoning will appear here after you send the question.</p>
+        <h3 id="summary-label" hidden>Returned reasoning summary</h3>
+        <pre id="reference-content" class="reference-content"></pre>
+      </section>
+      <section class="conversation" aria-label="Injections and scratchpad tool responses">
+        <div id="initial-response" class="initial-response"></div>
+        <div class="injection-heading"><button id="restore" class="text-button" disabled>Restore saved text</button></div>
+        <div id="turns" class="turns"></div>
+        <p id="conversation-end" class="conversation-end" hidden></p>
+      </section>
+    </div>
+    <footer>Edits apply to this demo only. Original injection and prompt files stay unchanged.</footer>
+  </main>
+</body>
+</html>

@@ -5,12 +5,13 @@ import os
 import re
 from openai import OpenAI
 
+from console_output import print_detail, print_turn
 from metrics import (
     InjectionTurn,
     TrajectoryResult,
     compute_lexical_metrics_summary,
     compute_length_metrics,
-    token_count_ratio_passes_threshold,
+    update_trajectory_success,
     count_tokens,
     summarize_cot,
 )
@@ -65,7 +66,7 @@ def load_model(model_name: str):
         raise ValueError("Set DASHSCOPE_API_KEY for Qwen target model")
     _client = OpenAI(
         api_key=api_key,
-        base_url="https://ws-k46uszac7yrb36u6.eu-central-1.maas.aliyuncs.com/compatible-mode/v1",
+        base_url=os.environ["QWEN_BASE_URL"],
     )
     _model_id = model_name  # e.g. "qwen3.5-plus", "qwen-plus-latest"
 
@@ -91,7 +92,7 @@ class SampleSession:
             {"role": "user", "content": question},
         ]
         self._tools = get_chat_tools(["scratchpad"])
-        self._pending_tool_call_id = None
+        self._pending_tool_call_ids = []
         self._next_turn_idx = 0
 
     def _append_assistant(self, msg, reasoning: str):
@@ -105,7 +106,7 @@ class SampleSession:
                 {
                     "id": tc.id,
                     "type": tc.type,
-                    "function": {"name": tc.function.name, "arguments": safe_json_loads(tc.function.arguments)},
+                    "function": {"name": tc.function.name, "arguments": tc.function.arguments},
                 }
                 for tc in (getattr(msg, "tool_calls", None) or [])
             ] or None,
@@ -132,7 +133,7 @@ class SampleSession:
 
                 return response.choices[0].message
             except Exception as e:
-                print(f"[Attempt {attempt+1}] Error generating response: {e}")
+                print(f"[{_model_id}] attempt={attempt + 1} Request failed: {e}", flush=True)
                 continue
         return None
 
@@ -152,29 +153,23 @@ class SampleSession:
             composite_score=summary_composite_score,
         ))
         
-        print(f"===== {turn_idx} ======")
-        print("CoT Full:", cot[:300])
-        print()
-        print("CoT Summary:", self.trajectory.ground_truth_cot_summary[:300])
-        print()
-        print("Token Counts:", token_count, self.trajectory.ground_truth_tokens, length_m["token_count_ratio"])
+        print_turn(_model_id, self.sample_id, turn_idx, token_count,
+                   self.trajectory.ground_truth_tokens, length_m["length_error"])
+        print_detail(f"{_model_id} sample={self.sample_id} turn={turn_idx} reasoning", cot[:300])
+        print_detail("Reference summary", self.trajectory.ground_truth_cot_summary[:300])
         
         self.current_ratio = length_m["token_count_ratio"]
         self.length_error = length_m["length_error"]
         self.token_recall = summary_eval_m["token_recall"]
         self.composite_score = summary_composite_score
-        if token_count_ratio_passes_threshold(length_m["token_count_ratio"]):
-            if self.trajectory.success_turn < 0:
-                self.trajectory.success_turn = turn_idx
-            self.trajectory.success = True
+        update_trajectory_success(self.trajectory)
 
     def start(self):
         if self.done or self.trajectory.turns:
             return
         msg = self._generate()
         reasoning = getattr(msg, "reasoning_content", None) or ""
-        print("[Target-CoT]:", reasoning[:500])
-        print("=="*30)
+        print_detail(f"{_model_id} initial reasoning", reasoning[:500])
         
         self.trajectory.ground_truth_cot = reasoning
         self.trajectory.ground_truth_tokens = count_tokens(reasoning)
@@ -201,7 +196,7 @@ class SampleSession:
         else:
             self.trajectory.ground_truth_cot_summary = summarize_cot(reasoning)
 
-        self._pending_tool_call_id = tool_call.id
+        self._pending_tool_call_ids = [tool_call.id for tool_call in tool_calls]
         self._record_scratchpad(scratchpad_content, 0, reasoning)
         self._next_turn_idx = 1
 
@@ -218,11 +213,11 @@ class SampleSession:
             "scratchpad_FEEDBACK": injection + REARCHIVE_SUFFIX,
             }
         
-        self.messages.append({
+        self.messages.extend({
             "role": "tool",
-            "tool_call_id": self._pending_tool_call_id,
+            "tool_call_id": tool_call_id,
             "content": json.dumps(tool_result, ensure_ascii=False),
-        })
+        } for tool_call_id in self._pending_tool_call_ids)
         
         msg = self._generate()
         reasoning = getattr(msg, "reasoning_content", None) or ""
@@ -243,7 +238,7 @@ class SampleSession:
             tool_args = safe_json_loads(tool_call.function.arguments or "{}")
             scratchpad_content += str(tool_args.get("content", ""))
         
-        self._pending_tool_call_id = tool_call.id
+        self._pending_tool_call_ids = [tool_call.id for tool_call in tool_calls]
         self._record_scratchpad(scratchpad_content, self._next_turn_idx, cot=reasoning)
         self._next_turn_idx += 1
     
@@ -257,11 +252,11 @@ class SampleSession:
             "scratchpad_FEEDBACK": injection,
         }
 
-        self.messages.append({
+        self.messages.extend({
             "role": "tool",
-            "tool_call_id": self._pending_tool_call_id,
+            "tool_call_id": tool_call_id,
             "content": json.dumps(tool_result, ensure_ascii=False),
-        })
+        } for tool_call_id in self._pending_tool_call_ids)
 
         msg = self._generate()
         self.trajectory.final_output = msg.content or ""

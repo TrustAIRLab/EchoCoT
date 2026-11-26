@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from config import DATA_PATH, DEFAULT_TARGET_MODEL
+from console_output import print_detail
 from dataset import ReasoningDataset
 from evaluate.common import (
     average,
@@ -26,6 +27,7 @@ from metrics import (
     compute_eval_metrics,
     compute_length_metrics,
     count_tokens,
+    update_trajectory_success,
 )
 
 DEFAULT_OUTPUT_DIR = "results/baseline_rep"
@@ -104,9 +106,7 @@ def record_trace(session, trace: str, cot: str = "") -> None:
         stopped=True,
     ))
     session.current_ratio = length_m["token_count_ratio"]
-    if eval_m["asr_90"]:
-        session.trajectory.success_turn = 1
-        session.trajectory.success = True
+    update_trajectory_success(session.trajectory)
 
 
 def save_rep_output(session, output: str, reasoning: str) -> None:
@@ -165,8 +165,7 @@ def run_gemini_rep(session, prompt: str) -> bool:
     session.contents = [content_type(role="user", parts=[part_type.from_text(text=prompt)])]
 
     response = session._generate(require_tool=False)
-    print(response)
-    print("======"*50)
+    print_detail("Repetition baseline response", response)
     answer_blocks, thought_blocks = [], []
     if response.candidates and response.candidates[0].content:
         for part in response.candidates[0].content.parts:
@@ -232,7 +231,7 @@ def run_model_baseline(
 
     for sample in samples:
         if sample.sample_id in records:
-            print(f"[{model_key}] skip existing sample={sample.sample_id}")
+            print(f"[rep:{model_key}] sample={sample.sample_id} skipped (already saved)")
             continue
 
         prompt = build_rep_prompt(prompt_template, demonstrations, sample.question)
@@ -286,12 +285,11 @@ def run_model_baseline(
         records[sample.sample_id] = record
 
         print(
-            f"[{model_key}] sample={sample.sample_id} turn={turn_record['turn_idx']} "
-            f"ground truth tokens={trajectory.ground_truth_tokens} "
-            f"ratio={turn_record['token_count_ratio']:.3f} "
-            f"token_f1={turn_record['token_f1']:.3f} "
-            f"rouge_l={turn_record['rouge_l']:.3f} "
-            f"success={trajectory.success}"
+            f"[rep:{model_key}] sample={sample.sample_id} turn={turn_record['turn_idx']} "
+            f"tokens={turn_record['scratchpad_tokens']}/{trajectory.ground_truth_tokens} "
+            f"length_error={turn_record['length_error']:.3f} "
+            + ("token_em=N/A " if length_only_success else f"token_em={turn_record['token_em']:.3f} ")
+            + f"success={trajectory.success}", flush=True,
         )
 
     n = len(samples)

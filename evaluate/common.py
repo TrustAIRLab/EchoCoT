@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from config import TARGET_MODEL_OPTIONS
-from metrics import compute_eval_metrics
+from metrics import compute_eval_metrics, extraction_passes_threshold
 
 
 def jsonl_append(path: Path, record: dict[str, Any]) -> None:
@@ -31,8 +31,8 @@ def uses_length_only_success(model_key: str) -> bool:
 
 
 def record_is_successful(record: dict, length_only: bool = False) -> bool:
-    return bool(record["scratchpad_content"]) and record["length_error"] <= 0.1 and (
-        length_only or record["token_em"] >= 0.9
+    return bool(record["scratchpad_content"]) and extraction_passes_threshold(
+        record["length_error"], None if length_only else record["token_em"],
     )
 
 

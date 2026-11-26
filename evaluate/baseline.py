@@ -24,6 +24,7 @@ from metrics import (
     compute_eval_metrics,
     compute_length_metrics,
     count_tokens,
+    update_trajectory_success,
 )
 from config import DATA_PATH, DEFAULT_TARGET_MODEL
 
@@ -58,9 +59,7 @@ def record_trace(session, trace: str, cot: str = "") -> None:
         stopped=True,
     ))
     session.current_ratio = length_m["token_count_ratio"]
-    if eval_m["asr_90"]:
-        session.trajectory.success_turn = 1
-        session.trajectory.success = True
+    update_trajectory_success(session.trajectory)
 
 
 def run_openai_baseline(session, prompt: str) -> bool:
@@ -198,7 +197,7 @@ def run_model_baseline(model_key: str, prompt: str, args: argparse.Namespace) ->
      
         
         if sample.sample_id in records:
-            print(f"[{model_key}] skip existing sample={sample.sample_id}")
+            print(f"[baseline:{model_key}] sample={sample.sample_id} skipped (already saved)")
             continue
         try:
             run_baseline(session, prompt)
@@ -248,12 +247,11 @@ def run_model_baseline(model_key: str, prompt: str, args: argparse.Namespace) ->
         records[sample.sample_id] = record
 
         print(
-            f"[{model_key}] sample={sample.sample_id} best_turn={best_record['turn_idx']} "
-            f"ground truth tokens={trajectory.ground_truth_tokens} "
-            f"ratio={best_record['token_count_ratio']:.3f} "
-            f"token_f1={best_record['token_f1']:.3f} "
-            f"rouge_l={best_record['rouge_l']:.3f} "
-            f"success={trajectory.success}"
+            f"[baseline:{model_key}] sample={sample.sample_id} best_turn={best_record['turn_idx']} "
+            f"tokens={best_record['scratchpad_tokens']}/{trajectory.ground_truth_tokens} "
+            f"length_error={best_record['length_error']:.3f} "
+            + ("token_em=N/A " if length_only_success else f"token_em={best_record['token_em']:.3f} ")
+            + f"success={trajectory.success}", flush=True,
         )
 
     n = len(samples)

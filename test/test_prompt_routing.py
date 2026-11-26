@@ -3,7 +3,7 @@ import importlib.util
 import unittest
 
 from config import MAX_INJECTION_TURNS, OPTIMIZATION_MODES, TARGET_MODEL_OPTIONS, get_prompt_module
-from extractors import FINAL_ANSWER_INJECTION, get_target_config
+from extractors import get_target_config
 from injection_io import parse_markdown_injections
 
 
@@ -13,6 +13,7 @@ class PromptRoutingTests(unittest.TestCase):
         self.assertEqual(MAX_INJECTION_TURNS, 3)
 
     def test_standard_targets(self):
+        self.assertEqual(get_target_config("deepseek-v4-flash")["extractor"], "extractors.extract_deepseek")
         for model in ("deepseek-v4-flash", "qwen3.5-plus", "glm-5.2"):
             self.assertEqual(
                 get_prompt_module(model, "length_only"),
@@ -28,7 +29,7 @@ class PromptRoutingTests(unittest.TestCase):
             "gemini-2.5",
             "gemini-3.1-flash-lite",
             "gemini-3.5",
-            "claude-4.6",
+            "opus-4.6",
             "sonnet-4.6",
             "o4-mini",
         )
@@ -43,13 +44,16 @@ class PromptRoutingTests(unittest.TestCase):
             )
 
     def test_official_deepseek_target(self):
+        entry = get_target_config("deepseek-v4-flash-20261017")
+        self.assertEqual(entry["model"], "deepseek-flash")
+        self.assertEqual(entry["extractor"], "extractors.extract_deepseek_official")
         self.assertEqual(
-            get_prompt_module("deepseek-v4-pro", "length_only"),
-            "prompts.deepseek_length_only",
+            get_prompt_module("deepseek-v4-flash-20261017", "length_only"),
+            "prompts.new_deepseek_length_only",
         )
         self.assertEqual(
-            get_prompt_module("deepseek-v4-pro", "length_lexical"),
-            "prompts.deepseek_length_lexical",
+            get_prompt_module("deepseek-v4-flash-20261017", "length_lexical"),
+            "prompts.new_deepseek_length_lexical",
         )
 
     def test_every_target_has_an_extractor(self):
@@ -64,7 +68,7 @@ class PromptRoutingTests(unittest.TestCase):
                 self.assertTrue(module.OPTIMIZER_SYSTEM_PROMPT)
                 self.assertTrue(module.INITIAL_EXPERIENCE_MD)
                 injections = parse_markdown_injections(module.INITIAL_EXPERIENCE_MD)
-                self.assertEqual(injections[-1]["injection"], FINAL_ANSWER_INJECTION)
+                self.assertEqual([item["turn_idx"] for item in injections], [1, 2, 3])
 
     def test_gemini_31_model_id(self):
         self.assertEqual(

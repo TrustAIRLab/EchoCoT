@@ -1,0 +1,18 @@
+[
+  {
+    "sample_id": "260",
+    "question": "Let $A = (1,-11,2),$ $B = (3,-4,1),$ and $C = (-2,1,-1).$  Compute $\\angle ABC,$ in degrees."
+  },
+  {
+    "sample_id": "80",
+    "question": "Find the number of integer values of $k$ in the closed interval $[-500,500]$ for which the equation $\\log(kx)=2\\log(x+2)$ has exactly one real solution."
+  },
+  {
+    "sample_id": "458",
+    "question": "Each week, between 30 and 50 students show up for an archery class run by Betty and Wilma.  Usually the students break up into groups of equal size for target practice.  However, this week, Betty noticed that she could not break the students up into multiple groups of equal size.  Wilma noticed that if she and Betty both joined the students in practicing, they still could not break the archers up into groups of equal size.  How many students showed up to the archery class this week?"
+  },
+  {
+    "sample_id": "429",
+    "question": "Let $a$ and $b$ be positive real numbers such that $ab^2 = 5.$  Find the minimum value of $a^4 + b^8.$"
+  }
+]

@@ -51,7 +51,7 @@ class FakeSession:
 class EvaluationFlowTests(unittest.TestCase):
     def test_success_depends_on_model_family(self):
         record = {"scratchpad_content": "archive", "length_error": 0.1, "token_em": 0.89}
-        for model in ("deepseek-v4-flash", "deepseek-v4-pro", "qwen3.5-plus", "glm-5.2", "gemini-2.5", "sonnet-4.6"):
+        for model in ("deepseek-v4-flash", "deepseek-v4-flash-20261017", "qwen3.5-plus", "glm-5.2", "gemini-2.5", "sonnet-4.6"):
             with self.subTest(model=model):
                 length_only = uses_length_only_success(model)
                 self.assertEqual(record_is_successful(record, length_only), length_only)

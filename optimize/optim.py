@@ -4,17 +4,16 @@ import importlib
 import os
 
 from openai import OpenAI
+from google import genai
+from google.genai import types
 
-from config import (
-    MAX_INJECTION_TURNS,
-    RATIO_LOWER_BOUND,
-    RATIO_UPPER_BOUND,
-)
+from config import MAX_INJECTION_TURNS
+from console_output import print_detail
 
 # Module-level state (set by optimize.__main__ before use)
-client: OpenAI = None
+client: OpenAI | genai.Client = None
 model_id: str = ""
-api_type: str = "responses"     # "chat" or "responses"
+api_type: str = "responses"     # "chat", "responses", or "vertex"
 max_turns: int = MAX_INJECTION_TURNS
 prompt_module_name: str = ""
 workflow_mode: str = ""
@@ -50,7 +49,7 @@ def _load_prompt_templates(module_name: str | None = None):
     INITIAL_EXPERIENCE_MD = prompts_module.INITIAL_EXPERIENCE_MD
 
 def init(
-    openai_client: OpenAI,
+    optimizer_client: OpenAI | genai.Client,
     model: str,
     model_api_type: str,
     max_injection_turns: int,
@@ -59,7 +58,7 @@ def init(
 ):
     """Set the optimizer's API client, model, API type, and prompt module."""
     global client, model_id, api_type, max_turns, workflow_mode
-    client = openai_client
+    client = optimizer_client
     model_id = model
     api_type = model_api_type
     max_turns = max_injection_turns
@@ -68,7 +67,22 @@ def init(
 
 
 def _call_api(messages: list) -> str:
-    """Call the optimizer LLM via Responses API or Chat Completions."""
+    """Call the optimizer via Vertex AI, Responses API, or Chat Completions."""
+    if api_type == "vertex":
+        contents = [
+            types.Content(
+                role="model" if message["role"] == "assistant" else "user",
+                parts=[types.Part.from_text(text=message["content"])],
+            )
+            for message in messages[1:]
+        ]
+        response = client.models.generate_content(
+            model=model_id,
+            contents=contents,
+            config=types.GenerateContentConfig(system_instruction=messages[0]["content"]),
+        )
+        return (response.text or "").strip()
+
     if api_type == "responses":
         response = client.responses.create(model=model_id, input=messages)
         text_parts = []
@@ -117,8 +131,6 @@ class TrajectoryOptimizer:
     def _init_conversation(self):
         formatted = OPTIMIZER_SYSTEM_PROMPT.format(
             max_injection_turns=max_turns,
-            ratio_lower_bound=RATIO_LOWER_BOUND,
-            ratio_upper_bound=RATIO_UPPER_BOUND,
         )
         self.messages = [{"role": "system", "content": formatted}]
 
@@ -170,7 +182,7 @@ class TrajectoryOptimizer:
         )
         injection = self._call(msg).strip()
         
-        print("inject message:", msg)
+        print_detail("Optimizer injection request", msg)
         return injection
 
     @staticmethod
@@ -259,7 +271,7 @@ class TrajectoryOptimizer:
             best_perf=self.best_perf,
             current_perf=self.current_perf
         )
-        print("reflect message:", msg)
+        print_detail("Optimizer reflection request", msg)
         
         return self._call(msg)
 
@@ -279,7 +291,7 @@ class TrajectoryOptimizer:
             current_perf=self.current_perf,
         )
         
-        print("distill message:", msg)
+        print_detail("Optimizer distillation request", msg)
         
         new_experience = self._call(msg).strip()
         self.experience_md = new_experience

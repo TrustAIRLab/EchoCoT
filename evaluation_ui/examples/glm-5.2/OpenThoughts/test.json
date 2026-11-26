@@ -1,0 +1,42 @@
+[
+  {
+    "sample_id": "93520",
+    "question": "Himu wants to go on a long drive with his girlfriend. There are N cities numbered from 1 to N, and every city is connected to every other city with bidirectional road. The length of a road is equal to XOR of the city numbers it is connecting. For example the length of road connecting city numbers 8 and 4 is 12. Himu wants this drive to be really long, so he will choose the road having maximum length. Help Himu find out the length of the longest road.\n\nInput:\nFirst line consists of T, the number of test cases.\nSecond line consists of N, the number of cities.\n\nOutput:\nPrint the answer for each test case in a new line.\n\nConstraints:\n1 ≤ T ≤ 10^5\n1 ≤ N ≤ 10^9\n\nSAMPLE INPUT\n1\n3\n\nSAMPLE OUTPUT\n3\n\nExplanation\n\nThere are 3 cities.\nLength of road between city number 1 & 2 = 3\nLength of road between city number 2 & 3 = 1\nLength of road between city number 1 & 3 = 2\nSo, clearly the maximum road length is  3."
+  },
+  {
+    "sample_id": "111397",
+    "question": "What are the implications of the theory of general relativity on the large-scale structure of the universe in the context of relativistic cosmology? In other words, how does the curvature of space-time affect our understanding of the distribution and evolution of galaxies and other celestial bodies in the universe? Provide mathematical evidence and observational data to support your analysis."
+  },
+  {
+    "sample_id": "112287",
+    "question": "\"How does the binding of specific transcription factors to DNA sequences affect the regulation of gene expression?\""
+  },
+  {
+    "sample_id": "108676",
+    "question": "After a terrifying forest fire in Berland a forest rebirth program was carried out. Due to it *N* rows with *M* trees each were planted and the rows were so neat that one could map it on a system of coordinates so that the *j*-th tree in the *i*-th row would have the coordinates of (*i*,<=*j*). However a terrible thing happened and the young forest caught fire. Now we must find the coordinates of the tree that will catch fire last to plan evacuation.\n\nThe burning began in *K* points simultaneously, which means that initially *K* trees started to burn. Every minute the fire gets from the burning trees to the ones that aren’t burning and that the distance from them to the nearest burning tree equals to 1.\n\nFind the tree that will be the last to start burning. If there are several such trees, output any.\nThe first input line contains two integers *N*,<=*M* (1<=≤<=*N*,<=*M*<=≤<=2000) — the size of the forest. The trees were planted in all points of the (*x*,<=*y*) (1<=≤<=*x*<=≤<=*N*,<=1<=≤<=*y*<=≤<=*M*) type, *x* and *y* are integers.\n\nThe second line contains an integer *K* (1<=≤<=*K*<=≤<=10) — amount of trees, burning in the beginning. \n\nThe third line contains *K* pairs of integers: *x*1,<=*y*1,<=*x*2,<=*y*2,<=...,<=*x**k*,<=*y**k* (1<=≤<=*x**i*<=≤<=*N*,<=1<=≤<=*y**i*<=≤<=*M*) — coordinates of the points from which the fire started. It is guaranteed that no two points coincide.\nOutput a line with two space-separated integers *x* and *y* — coordinates of the tree that will be the last one to start burning. If there are several such trees, output any.\nSample Input\n3 3\n1\n2 2\n3 3\n1\n1 1\n3 3\n2\n1 1 3 3\n\nSample Output\n1 1\n3 3\n2 2"
+  },
+  {
+    "sample_id": "112370",
+    "question": "How does the metabolism of a drug affect its efficacy and safety in the body? Discuss the impact of different factors such as drug structure, enzyme activity, and pharmacokinetic pathways on drug metabolism. Additionally, analyze the potential for drug-drug interactions and the implications for designing effective and safe medication regimens for patients."
+  },
+  {
+    "sample_id": "100784",
+    "question": "Given a Binary string st and a number k. You have to find the Longest continuous sequence of '0' after repeating Given string K time.\nExample 1:\nInput: k = 3\nst = 100001\nOutput: 4\nExplaination: The string repeated k times \nbecome 100001100001100001. Here the longest \ncontinuous sequence of 0 is 4.\nExample 2:\nInput: k = 4\nst = 000\nOutput: 12\nExplaination: When st is repeated 4 times \nit become 000000000000. The longest sequence \nbecomes of length 12.\nYour Task:\nYou do not need to read input or print anything. Your task is to complete the function lcsK() which takes k and st as input parameters and returns the length of the longest continuous sequence of 0's after repeating st k times.\nExpected Time Complexity: O(|st|)\nExpected Auxiliary Space: O(1)\nConstraints:\n1 ≤ |st| ≤ 10^{5}\n1 ≤ k ≤ 10^{5}"
+  },
+  {
+    "sample_id": "112302",
+    "question": "What is the amount of copper ions present in a 1.0 mL sample of copper sulfate solution, when a current of 3.0 A for 10 seconds is used for coulometry analysis, assuming 100% efficiency in electrode reactions and a coulombic efficiency of 90%?"
+  },
+  {
+    "sample_id": "110179",
+    "question": "Which taxonomic order should a species belong to if it has the following characteristics: external gills and scaleless skin, three-chambered heart, and cold-blooded nature?"
+  },
+  {
+    "sample_id": "93744",
+    "question": "You are given an array a consisting of n integers.\n\nYour task is to say the number of such positive integers x such that x divides each number from the array. In other words, you have to find the number of common divisors of all elements in the array.\n\nFor example, if the array a will be [2, 4, 6, 2, 10], then 1 and 2 divide each number from the array (so the answer for this test is 2).\n\nInput\n\nThe first line of the input contains one integer n (1 ≤ n ≤ 4 ⋅ 10^5) — the number of elements in a.\n\nThe second line of the input contains n integers a_1, a_2, ..., a_n (1 ≤ a_i ≤ 10^{12}), where a_i is the i-th element of a.\n\nOutput\n\nPrint one integer — the number of such positive integers x such that x divides each number from the given array (in other words, the answer is the number of common divisors of all elements in the array).\n\nExamples\n\nInput\n\n\n5\n1 2 3 4 5\n\n\nOutput\n\n\n1\n\n\nInput\n\n\n6\n6 90 12 18 30 18\n\n\nOutput\n\n\n4"
+  },
+  {
+    "sample_id": "107700",
+    "question": "Polycarp likes arithmetic progressions. A sequence $[a_1, a_2, \\dots, a_n]$ is called an arithmetic progression if for each $i$ ($1 \\le i &lt; n$) the value $a_{i+1} - a_i$ is the same. For example, the sequences $[42]$, $[5, 5, 5]$, $[2, 11, 20, 29]$ and $[3, 2, 1, 0]$ are arithmetic progressions, but $[1, 0, 1]$, $[1, 3, 9]$ and $[2, 3, 1]$ are not.\n\nIt follows from the definition that any sequence of length one or two is an arithmetic progression.\n\nPolycarp found some sequence of positive integers $[b_1, b_2, \\dots, b_n]$. He agrees to change each element by at most one. In the other words, for each element there are exactly three options: an element can be decreased by $1$, an element can be increased by $1$, an element can be left unchanged.\n\nDetermine a minimum possible number of elements in $b$ which can be changed (by exactly one), so that the sequence $b$ becomes an arithmetic progression, or report that it is impossible.\n\nIt is possible that the resulting sequence contains element equals $0$.\nThe first line contains a single integer $n$ $(1 \\le n \\le 100\\,000)$ — the number of elements in $b$.\n\nThe second line contains a sequence $b_1, b_2, \\dots, b_n$ $(1 \\le b_i \\le 10^{9})$.\nIf it is impossible to make an arithmetic progression with described operations, print -1. In the other case, print non-negative integer — the minimum number of elements to change to make the given sequence becomes an arithmetic progression. The only allowed operation is to add/to subtract one from an element (can't use operation twice to the same position).\nSample Input\n4\n24 21 14 10\n2\n500 500\n3\n14 5 1\n5\n1 3 6 9 12\n\nSample Output\n3\n0\n-1\n1"
+  }
+]

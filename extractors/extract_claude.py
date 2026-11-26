@@ -1,8 +1,8 @@
 """Claude reasoning target model: Anthropic Messages API + extended-thinking replay.
 
 Reasoning continuity across tool turns is provided by Anthropic's thinking-block
-`signature` field. Each assistant turn's content blocks are round-tripped
-verbatim via `model_dump()`, preserving the encrypted reasoning state.
+`signature` field. Assistant content blocks retain their reasoning state;
+Opus 4.6 text blocks omit the SDK-only `parsed_output` field during replay.
 """
 
 import json
@@ -10,13 +10,14 @@ import os
 
 from anthropic import Anthropic
 
+from console_output import print_detail, print_turn
 from extractors.tools import get_anthropic_tools
 from metrics import (
     InjectionTurn,
     TrajectoryResult,
     compute_lexical_metrics_summary,
     compute_length_metrics,
-    token_count_ratio_passes_threshold,
+    update_trajectory_success,
 )
 
 SYSTEM_PROMPT = (
@@ -108,7 +109,7 @@ class SampleSession:
         # including thinking and redacted-thinking blocks.
         self.messages = [{"role": "user", "content": question}]
 
-        self._pending_tool_use_id = None
+        self._pending_tool_use_ids = []
         self._next_turn_idx = 0
 
     def _create_message(self):
@@ -188,15 +189,11 @@ class SampleSession:
         self.token_recall = summary_eval_m["token_recall"]
         self.composite_score = summary_composite_score
 
-        print(f"===== {turn_idx} ======")
-        print("CoT Full:", cot[:300])
-        print()
-        print("CoT Summary:", self.trajectory.ground_truth_cot_summary[:300])
-        print("Token Counts:", token_count, self.trajectory.ground_truth_tokens, length_m["token_count_ratio"])
-        if token_count_ratio_passes_threshold(ratio):
-            if self.trajectory.success_turn < 0:
-                self.trajectory.success_turn = turn_idx
-            self.trajectory.success = True
+        print_turn(_model_id, self.sample_id, turn_idx, token_count,
+                   self.trajectory.ground_truth_tokens, length_m["length_error"])
+        print_detail(f"{_model_id} sample={self.sample_id} turn={turn_idx} reasoning summary", cot[:300])
+        print_detail("Reference summary", self.trajectory.ground_truth_cot_summary[:300])
+        update_trajectory_success(self.trajectory)
 
     def _handle_response(self, response, turn_idx: int):
         thinking_blocks = [
@@ -226,7 +223,9 @@ class SampleSession:
             {
                 "role": "assistant",
                 "content": [
-                    block.model_dump()
+                    block.model_dump(exclude={"parsed_output"})
+                    if _model_id == "claude-opus-4-6" and block.type == "text"
+                    else block.model_dump()
                     for block in response.content
                 ],
             }
@@ -247,7 +246,7 @@ class SampleSession:
             if isinstance(tool_use.input, dict):
                 scratchpad_content += tool_use.input.get("content", "")
 
-        self._pending_tool_use_id = tool_use_blocks[-1].id
+        self._pending_tool_use_ids = [tool_use.id for tool_use in tool_use_blocks]
         self._record_scratchpad(
             str(scratchpad_content),
             turn_idx,
@@ -285,12 +284,12 @@ class SampleSession:
                 "content": [
                     {
                         "type": "tool_result",
-                        "tool_use_id": self._pending_tool_use_id,
+                        "tool_use_id": tool_use_id,
                         "content": json.dumps(
                             tool_result,
                             ensure_ascii=False,
                         ),
-                    }
+                    } for tool_use_id in self._pending_tool_use_ids
                 ],
             }
         )
@@ -317,9 +316,9 @@ class SampleSession:
             "role": "user",
             "content": [{
                 "type": "tool_result",
-                "tool_use_id": self._pending_tool_use_id,
+                "tool_use_id": tool_use_id,
                 "content": json.dumps(tool_result, ensure_ascii=False),
-            }],
+            } for tool_use_id in self._pending_tool_use_ids],
         })
         response = self._create_message()
         self.trajectory.final_output = "".join(

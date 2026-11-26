@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from console_output import print_detail
 from config import (
     DATA_PATH,
     DEFAULT_MODE,
@@ -68,13 +69,13 @@ def run_model_evaluation(
         session.sample_id = sample.sample_id
         
         if sample.sample_id in records:
-            print(f"[{model_key}] skip existing sample={sample.sample_id}")
+            print(f"[evaluate:{model_key}] sample={sample.sample_id} skipped (already saved)")
             continue
         
         session.start()
 
         for turn_idx, injection in enumerate(injections, start=1):
-            print(turn_idx, ":", injection["injection"])
+            print_detail(f"Sample {sample.sample_id} injection {turn_idx}", injection["injection"])
 
             if session.done:
                 break
@@ -141,12 +142,10 @@ def run_model_evaluation(
         records[sample.sample_id] = record
 
         print(
-            f"[{model_key}] sample={sample.sample_id} best_turn={best_record['turn_idx']} "
-            f"ratio={best_record['token_count_ratio']:.3f} "
-            f"token_f1={best_record['token_f1']:.3f} "
-            f"rouge_l={best_record['rouge_l']:.3f} "
-            f"token_em={best_record['token_em']:.3f} "
-            f"asr_90={success}"
+            f"[evaluate:{model_key}] sample={sample.sample_id} best_turn={best_record['turn_idx']} "
+            f"length_error={best_record['length_error']:.3f} "
+            + ("token_em=N/A " if length_only_success else f"token_em={best_record['token_em']:.3f} ")
+            + f"success={success}", flush=True,
         )
         
     n = len(samples)
@@ -181,9 +180,10 @@ def run_model_evaluation(
     }
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print(
-        f"[{model_key}] AVG ratio={summary['avg_token_count_ratio']:.3f} "
+        f"[evaluate:{model_key}] complete samples={n} "
         f"length_error={summary['avg_length_error']:.3f} "
-        f"tool_invocation={tool_invocation_count}/{n} asr_90={summary['asr_90']}"
+        f"tool_invocation={tool_invocation_count}/{n} asr_90={summary['asr_90']}\n"
+        f"[evaluate:{model_key}] Saved {records_path} and {summary_path}", flush=True,
     )
     return summary
 
@@ -217,10 +217,9 @@ def main() -> None:
     injections = load_injections(args.experience_md)
 
     model_keys = resolve_model_keys(args.target_model)
-    print("============= INJECTIONS ===============")
+    print(f"[evaluate] dataset={args.dataset} injections={len(injections)} file={args.experience_md}")
     for inj in injections:
-        print(inj["turn_idx"], inj["injection"])
-    print("============= INJECTIONS ===============")
+        print_detail(f"Saved injection {inj['turn_idx']}", inj["injection"])
 
     summaries = [run_model_evaluation(model_key, injections, args) for model_key in model_keys]
     if len(summaries) > 1:

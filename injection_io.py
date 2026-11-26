@@ -40,6 +40,7 @@ def _normalize_json_injections(data: Any) -> list[dict]:
 
 def parse_markdown_injections(text: str) -> list[dict]:
     """Parse both ``Turn 1:`` and ``Turn-1:`` trajectory headings."""
+    text = text.split("## SEARCH KNOWLEDGE", 1)[0]
     return [
         {"turn_idx": int(match.group(1)), "injection": match.group(2).strip()}
         for match in _TURN_PATTERN.finditer(text)

@@ -9,7 +9,9 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from openai import OpenAI
+from google import genai
 
+from console_output import print_detail
 from config import (
     BATCH_SIZE,
     DATA_PATH,
@@ -22,8 +24,8 @@ from config import (
     OPTIMIZATION_MODES,
     OPTIMIZER_MODEL_OPTIONS,
     OUTPUT_DIR,
-    RATIO_LOWER_BOUND,
-    RATIO_UPPER_BOUND,
+    LENGTH_ERROR_THRESHOLD,
+    TOKEN_EM_THRESHOLD,
     TARGET_MODEL_OPTIONS,
     get_prompt_module,
 )
@@ -35,6 +37,7 @@ from metrics import (
     format_best_turn_table,
     format_score_table,
     get_best_turn_scores,
+    length_error_passes_threshold,
     summarize_cot,
 )
 from extractors import (
@@ -48,7 +51,13 @@ from dataset import ReasoningDataset
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def create_optimizer_client(entry: dict) -> OpenAI:
+def create_optimizer_client(entry: dict) -> OpenAI | genai.Client:
+    if entry["api_type"] == "vertex":
+        return genai.Client(
+            vertexai=True,
+            project=entry["project"],
+            location=entry["location"],
+        )
     api_key = os.getenv(entry["api_key_env"])
     if not api_key:
         raise ValueError(f"Set {entry['api_key_env']} for {entry['provider']}")
@@ -151,7 +160,8 @@ def run_batch(optimizer, minibatch, extractor, max_turns: int, mode: str = "leng
             for sess in sessions
         ]]
     
-    for turn_idx in range(1, max_turns + 1):
+    final_turn = max_turns
+    for turn_idx in range(1, final_turn + 1):
         _sync_cot_summaries(sessions)
         per_sample_ratios = ratio_matrix[-1]
         batch_scratchpad = [sess.trajectory.turns[-1].scratchpad_in if sess.trajectory.turns else "" for sess in sessions]
@@ -162,7 +172,7 @@ def run_batch(optimizer, minibatch, extractor, max_turns: int, mode: str = "leng
         if all(sess.done for sess in sessions):
             break
 
-        if turn_idx == max_turns:
+        if turn_idx == final_turn:
             injection = FINAL_ANSWER_INJECTION
         else:
             injection = optimizer.inject_batch(
@@ -172,17 +182,16 @@ def run_batch(optimizer, minibatch, extractor, max_turns: int, mode: str = "leng
                 cot_preview=cot_preview,
             )
         
-        print(f"======== turn-{turn_idx}==========")
-        print("injection:", injection)
-        print("=============================")
+        print(f"[train] turn={turn_idx}/{final_turn} "
+              f"action={'final answer' if turn_idx == final_turn else 'injection'}", flush=True)
+        print_detail(f"Turn {turn_idx} injection", injection)
                 
         active_sessions = [sess for sess in sessions if not sess.done]
-        if turn_idx == max_turns:
+        if turn_idx == final_turn:
             _run_parallel([
                 lambda sess=sess: sess.final_send(injection)
                 for sess in active_sessions
             ])
-            realized_trajectory.append(injection)
             break
 
         _run_parallel([lambda sess=sess: sess.send(injection) for sess in active_sessions])
@@ -304,12 +313,14 @@ def optimize(
     client = create_optimizer_client(oe)
     opt_module.init(client, oe["model"], oe["api_type"], injection_turns, prompt_module, mode)
 
-    print(f"Target:    {te['notes']}")
-    print(f"Optimizer: {oe['provider']} / {oe['model']} (api: {oe['api_type']})")
-    print(f"Mode: {mode}")
-    print(f"Prompt module: {prompt_module}")
-    print(f"Max injection turns: {injection_turns}")
-    print(f"Training target range: {RATIO_LOWER_BOUND} <= token_count_ratio <= {RATIO_UPPER_BOUND}")
+    print(f"[train] target={target_model_key} optimizer={optimizer_model_key} mode={mode}")
+    print(f"[train] dataset={dataset} prompt={prompt_module}")
+    print(f"[train] optimized_turns={injection_turns - 1} final_turn={injection_turns}")
+    success_thresholds = {"length_error_threshold": LENGTH_ERROR_THRESHOLD}
+    print(f"[train] length_error <= {LENGTH_ERROR_THRESHOLD}")
+    if te["extractor"] not in ("extractors.extract_gemini", "extractors.extract_claude"):
+        success_thresholds["token_em_threshold"] = TOKEN_EM_THRESHOLD
+        print(f"[train] Full-CoT success also requires token_em >= {TOKEN_EM_THRESHOLD}")
 
     output_dir = os.path.join(OUTPUT_DIR, "train", target_model_key, mode, dataset)
     os.makedirs(output_dir, exist_ok=True)
@@ -326,8 +337,7 @@ def optimize(
             "prompt_module": prompt_module,
             "mode": mode,
             "seed": seed,
-            "ratio_lower_bound": RATIO_LOWER_BOUND,
-            "ratio_upper_bound": RATIO_UPPER_BOUND,
+            **success_thresholds,
         }, indent=2),
         encoding="utf-8",
     )
@@ -349,7 +359,7 @@ def optimize(
     samples = list(dataset)
     random.Random(seed).shuffle(samples)
     batches = [samples[i:i + batch_size] for i in range(0, len(samples), batch_size)][:max_batches]
-    print(f"Loaded {len(samples)} samples -> {len(batches)} batches of {batch_size}")
+    print(f"[train] samples={len(samples)} batches={len(batches)} batch_size={batch_size} output={output_dir}")
 
     optimizer = TrajectoryOptimizer(experience_path=experience_path)
     stagnation = 0
@@ -358,14 +368,11 @@ def optimize(
 
     for batch_idx, batch in enumerate(batches):
         sample_ids = [sample.sample_id for sample in batch]
-        print(f"\n{'='*60}")
-        print(f"BATCH {batch_idx + 1}/{len(batches)}")
-        print(f"{'='*60}")
+        print(f"\n[train] batch={batch_idx + 1}/{len(batches)}", flush=True)
         if batch_idx < last_batch_idx:
             continue
-        print("Questions:")
         for idx, sp in enumerate(batch):
-            print(f"Question-{idx}:", sp.question[:100])
+            print_detail(f"Sample {sp.sample_id} question", sp.question[:100])
             
         trajectories, realized_trajectory, ratio_matrix, scratchpad_preview, cot_preview = run_batch(optimizer, batch, extractor, injection_turns, mode)
         best_turns, best_scores = get_best_turn_scores(sample_ids, ratio_matrix, mode)
@@ -383,12 +390,12 @@ def optimize(
             turn.length_error if turn else 1.0
             for turn in batch_best_eval_turns
         ]
-        frac_in_target = sum(length_error <= 0.100 for length_error in batch_best_length_errors) / len(batch_best_length_errors)
+        frac_in_target = sum(length_error_passes_threshold(error) for error in batch_best_length_errors) / len(batch_best_length_errors)
         
         for i, (sample, trajectory) in enumerate(zip(batch, trajectories)):
             status = "SUCCESS" if trajectory.success else "FAIL"
             print(
-                f"  Sample {i+1}/{len(batch)} id={sample.sample_id} {status}: "
+                f"[train] sample={sample.sample_id} {status} "
                 f"best_length_error={batch_best_length_errors[i]:.3f} "
                 + (f" success_turn={trajectory.success_turn}" if trajectory.success else "")
             )
@@ -397,14 +404,14 @@ def optimize(
         improved = optimizer.record_batch_trajectory(realized_trajectory, mean_ratio_matrix, frac_in_target)
         if mode == "length_only":
             print(
-                f"\n  Batch {batch_idx} - mean_length_error={mean_ratio_matrix[0]:.3f} "
+                f"[train] batch={batch_idx + 1} mean_length_error={mean_ratio_matrix[0]:.3f} "
                 f"frac_in_target={frac_in_target:.3f} "
                 f"success={sum(batch_successes)}/{len(batch)} "
                 f"best_updated={improved}"
             )
         else:
             print(
-                f"\n  Batch {batch_idx} - mean_composite_score={mean_ratio_matrix[2]:.3f} "
+                f"[train] batch={batch_idx + 1} mean_composite_score={mean_ratio_matrix[2]:.3f} "
                 f"frac_in_target={frac_in_target:.3f} "
                 f"success={sum(batch_successes)}/{len(batch)} "
                 f"best_updated={improved}"
@@ -420,9 +427,7 @@ def optimize(
                                            realized_trajectory=realized_trajectory,
                                            frac_in_target=frac_in_target)
         
-        print("--------- Reflect Batch Critique ---------")
-        print(critique)
-        print("--------- Reflect Batch ---------")
+        print_detail(f"Batch {batch_idx + 1} critique", critique)
 
         _jsonl(os.path.join(output_dir, "batch_reflect.jsonl"), {
             "batch": batch_idx,
@@ -438,24 +443,24 @@ def optimize(
         })
 
         optimizer.distill(batch_idx, realized_trajectory)
-        print(f"  experience.md updated -> {experience_path}")
+        print(f"[train] Updated {experience_path}", flush=True)
 
         batch_score = mean_ratio_matrix[0] if mode == "length_only" else mean_ratio_matrix[2]
         improved_history = batch_score < global_best_score if mode == "length_only" else batch_score > global_best_score
         if not improved_history:
             stagnation += 1
-            print(f"  Stagnation: {stagnation}/{EARLY_STOP_PATIENCE}")
+            print(f"[train] stagnation={stagnation}/{EARLY_STOP_PATIENCE}")
         else:
             stagnation = 0
             global_best_score = batch_score
         score_history.append({"best_score": global_best_score, "batch_frac_in_target": frac_in_target})
 
         if stagnation >= EARLY_STOP_PATIENCE:
-            print(f"\nEarly stop after {batch_idx + 1} batches.")
+            print(f"[train] Early stop after {batch_idx + 1} batches.")
             break
 
-    print(f"\nDone. experience.md: {experience_path}")
-    print("Score history: " f"{[(round(s['best_score'], 3), round(s['batch_frac_in_target'], 3)) for s in score_history]}")
+    print(f"[train] Complete. Saved injections: {experience_path}", flush=True)
+    print_detail("Score history", [(round(s['best_score'], 3), round(s['batch_frac_in_target'], 3)) for s in score_history])
     sys.exit()
 
 # ---------------------------------------------------------------------------

@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-model=${MODEL:-deepseek-v4-flash}
-dataset=${DATASET:-OpenThoughts}
-train_root=${TRAIN_ROOT:-results_ablation/train}
-output_dir=${OUTPUT_DIR:-results_ablation/evaluation}
-max_samples=${MAX_SAMPLES:-100}
+model=deepseek-v4-flash
+experience_md=injections/deepseek-v4-flash_expereince.md
+dataset=OpenThoughts
+mode=length_lexical
 
-for mode in length_only length_lexical
-do
-    experience_md="$train_root/$model/$mode/$dataset/experience.md"
-    python3 -m evaluate \
-        --target-model "$model" \
-        --dataset "$dataset" \
-        --mode "$mode" \
-        --max-samples "$max_samples" \
-        --experience_md "$experience_md" \
-        --output-dir "$output_dir"
-done
+if [ "$model" = "opus-4.6" ]; then
+    mode=length_only
+fi
+output_dir=outputs/evaluation
+max_samples=10
+
+python3 -m evaluate \
+    --target-model "$model" \
+    --experience_md "$experience_md" \
+    --dataset "$dataset" \
+    --mode "$mode" \
+    --max-samples "$max_samples" \
+    --output-dir "$output_dir"

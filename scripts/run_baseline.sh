@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-model=${MODEL:-qwen3.5-plus}
-dataset=${DATASET:-OpenThoughts}
+model=qwen3.5-plus
+dataset=OpenThoughts
+max_samples=500
 
 python3 -m evaluate.baseline \
     --target-model "$model" \
     --dataset "$dataset" \
-    --max-samples "${MAX_SAMPLES:-500}"
+    --max-samples "$max_samples"

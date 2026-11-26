@@ -1,0 +1,42 @@
+[
+  {
+    "sample_id": "181",
+    "question": "A thin spherical insulating shell of radius $R$ carries a uniformly distributed charge such that the potential at its surface is $V_{0}$. A hole with a small area $\\alpha 4 \\pi R^{2}(\\alpha \\ll 1)$ is made on the shell without affecting the rest of the shell. Which one of the following statements is correct?\n\n(A) The potential at the center of the shell is reduced by $2 \\alpha V_{0}$\n\n(B) The magnitude of electric field at the center of the shell is reduced by $\\frac{\\alpha V_{0}}{2 R}$\n\n(C) The ratio of the potential at the center of the shell to that of the point at $\\frac{1}{2} R$ from center towards the hole will be $\\frac{1-\\alpha}{1-2 \\alpha}$\n\n(D) The magnitude of electric field at a point, located on a line passing through the hole and shell's center, on a distance $2 R$ from the center of the spherical shell will be reduced by $\\frac{\\alpha V_{0}}{2 R}$"
+  },
+  {
+    "sample_id": "24",
+    "question": "Let $-\\frac{\\pi}{6}<\\theta<-\\frac{\\pi}{12}$. Suppose $\\alpha_{1}$ and $\\beta_{1}$ are the roots of the equation $x^{2}-2 x \\sec \\theta+1=0$ and $\\alpha_{2}$ and $\\beta_{2}$ are the roots of the equation $x^{2}+2 x \\tan \\theta-1=0$. If $\\alpha_{1}>\\beta_{1}$ and $\\alpha_{2}>\\beta_{2}$, then $\\alpha_{1}+\\beta_{2}$ equals\n\n(A) $2(\\sec \\theta-\\tan \\theta)$\n\n(B) $2 \\sec \\theta$\n\n(C) $-2 \\tan \\theta$\n\n(D) 0"
+  },
+  {
+    "sample_id": "110",
+    "question": "If $y=y(x)$ satisfies the differential equation\n\\[\n8 \\sqrt{x}(\\sqrt{9+\\sqrt{x}}) d y=(\\sqrt{4+\\sqrt{9+\\sqrt{x}}})^{-1} d x, \\quad x>0\n\\]\n\nand $y(0)=\\sqrt{7}$, then $y(256)=$\n\n[A] 3\n\n[B] 9\n\n[C] 16\n\n[D] 80"
+  },
+  {
+    "sample_id": "161",
+    "question": "Consider a hydrogen-like ionized atom with atomic number $Z$ with a single electron. In the emission spectrum of this atom, the photon emitted in the $n=2$ to $n=1$ transition has energy $74.8 \\mathrm{eV}$ higher than the photon emitted in the $n=3$ to $n=2$ transition. The ionization energy of the hydrogen atom is $13.6 \\mathrm{eV}$. What is the value of $Z$?"
+  },
+  {
+    "sample_id": "239",
+    "question": "Five persons $A, B, C, D$ and $E$ are seated in a circular arrangement. If each of them is given a hat of one of the three colours red, blue and green, then what is the number of ways of distributing the hats such that the persons seated in adjacent seats get different coloured hats?"
+  },
+  {
+    "sample_id": "283",
+    "question": "A cubical solid aluminium (bulk modulus $=-V \\frac{d P}{d V}=70 \\mathrm{GPa}$ block has an edge length of 1 m on the surface of the earth. It is kept on the floor of a $5 \\mathrm{~km}$ deep ocean. Taking the average density of water and the acceleration due to gravity to be $10^{3} \\mathrm{~kg} \\mathrm{~m}^{-3}$ and $10 \\mathrm{~ms}^{-2}$, respectively, what is the change in the edge length of the block in $\\mathrm{mm}$?"
+  },
+  {
+    "sample_id": "301",
+    "question": "Let $a$ and $b$ be positive real numbers such that $a>1$ and $b<a$. Let $P$ be a point in the first quadrant that lies on the hyperbola $\\frac{x^{2}}{a^{2}}-\\frac{y^{2}}{b^{2}}=1$. Suppose the tangent to the hyperbola at $P$ passes through the point $(1,0)$, and suppose the normal to the hyperbola at $P$ cuts off equal intercepts on the coordinate axes. Let $\\Delta$ denote the area of the triangle formed by the tangent at $P$, the normal at $P$ and the $x$-axis. If $e$ denotes the eccentricity of the hyperbola, then which of the following statements is/are TRUE?\n\n(A) $1<e<\\sqrt{2}$\n\n(B) $\\sqrt{2}<e<2$\n\n(C) $\\Delta=a^{4}$\n\n(D) $\\Delta=b^{4}$"
+  },
+  {
+    "sample_id": "183",
+    "question": "In a radioactive sample, ${ }_{19}^{40} \\mathrm{~K}$ nuclei either decay into stable ${ }_{20}^{40} \\mathrm{Ca}$ nuclei with decay constant $4.5 \\times 10^{-10}$ per year or into stable ${ }_{18}^{40} \\mathrm{Ar}$ nuclei with decay constant $0.5 \\times 10^{-10}$ per year. Given that in this sample all the stable ${ }_{20}^{40} \\mathrm{Ca}$ and ${ }_{18}^{40} \\mathrm{Ar}$ nuclei are produced by the ${ }_{19}^{40} \\mathrm{~K}$ nuclei only. In time $t \\times 10^{9}$ years, if the ratio of the sum of stable ${ }_{20}^{40} \\mathrm{Ca}$ and ${ }_{18}^{40} \\mathrm{Ar}$ nuclei to the radioactive ${ }_{19}^{40} \\mathrm{~K}$ nuclei is 99 , the value of $t$ will be,\n\n[Given: $\\ln 10=2.3]$\n\n(A) 1.15\n\n(B) 9.2\n\n(C) 2.3\n\n(D) 4.6"
+  },
+  {
+    "sample_id": "341",
+    "question": "In a triangle $A B C$, let $A B=\\sqrt{23}, B C=3$ and $C A=4$. Then what is the value of\n\n\\[\n\\frac{\\cot A+\\cot C}{\\cot B}\n\\]?"
+  },
+  {
+    "sample_id": "126",
+    "question": "A ring and a disc are initially at rest, side by side, at the top of an inclined plane which makes an angle $60^{\\circ}$ with the horizontal. They start to roll without slipping at the same instant of time along the shortest path. If the time difference between their reaching the ground is $(2-\\sqrt{3}) / \\sqrt{10} s$, then what is the height of the top of the inclined plane, in metres?\n\nTake $g=10 m s^{-2}$."
+  }
+]

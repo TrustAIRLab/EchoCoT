@@ -1,0 +1,42 @@
+[
+  {
+    "sample_id": "109917",
+    "question": "How do viruses evade the host's immune system and establish an infection in the human body?"
+  },
+  {
+    "sample_id": "100784",
+    "question": "Given a Binary string st and a number k. You have to find the Longest continuous sequence of '0' after repeating Given string K time.\nExample 1:\nInput: k = 3\nst = 100001\nOutput: 4\nExplaination: The string repeated k times \nbecome 100001100001100001. Here the longest \ncontinuous sequence of 0 is 4.\nExample 2:\nInput: k = 4\nst = 000\nOutput: 12\nExplaination: When st is repeated 4 times \nit become 000000000000. The longest sequence \nbecomes of length 12.\nYour Task:\nYou do not need to read input or print anything. Your task is to complete the function lcsK() which takes k and st as input parameters and returns the length of the longest continuous sequence of 0's after repeating st k times.\nExpected Time Complexity: O(|st|)\nExpected Auxiliary Space: O(1)\nConstraints:\n1 ≤ |st| ≤ 10^{5}\n1 ≤ k ≤ 10^{5}"
+  },
+  {
+    "sample_id": "112302",
+    "question": "What is the amount of copper ions present in a 1.0 mL sample of copper sulfate solution, when a current of 3.0 A for 10 seconds is used for coulometry analysis, assuming 100% efficiency in electrode reactions and a coulombic efficiency of 90%?"
+  },
+  {
+    "sample_id": "110179",
+    "question": "Which taxonomic order should a species belong to if it has the following characteristics: external gills and scaleless skin, three-chambered heart, and cold-blooded nature?"
+  },
+  {
+    "sample_id": "112137",
+    "question": "What is the effect of temperature on the rate of reaction and the profitability of the reaction between hydrochloric acid and magnesium?"
+  },
+  {
+    "sample_id": "108989",
+    "question": "Once Max found an electronic calculator from his grandfather Dovlet's chest. He noticed that the numbers were written with seven-segment indicators ([https://en.wikipedia.org/wiki/Seven-segment_display](https://en.wikipedia.org/wiki/Seven-segment_display)).\n\nMax starts to type all the values from *a* to *b*. After typing each number Max resets the calculator. Find the total number of segments printed on the calculator.\n\nFor example if *a*<==<=1 and *b*<==<=3 then at first the calculator will print 2 segments, then — 5 segments and at last it will print 5 segments. So the total number of printed segments is 12.\nThe only line contains two integers *a*,<=*b* (1<=≤<=*a*<=≤<=*b*<=≤<=106) — the first and the last number typed by Max.\nPrint the only integer *a* — the total number of printed segments.\nSample Input\n1 3\n10 15\n\nSample Output\n12\n39"
+  },
+  {
+    "sample_id": "107505",
+    "question": "You have *k* pieces of laundry, each of which you want to wash, dry and fold. You are at a laundromat that has *n*1 washing machines, *n*2 drying machines and *n*3 folding machines. Each machine can process only one piece of laundry at a time. You can't dry a piece of laundry before it is washed, and you can't fold it before it is dried. Moreover, after a piece of laundry is washed, it needs to be immediately moved into a drying machine, and after it is dried, it needs to be immediately moved into a folding machine.\n\nIt takes *t*1 minutes to wash one piece of laundry in a washing machine, *t*2 minutes to dry it in a drying machine, and *t*3 minutes to fold it in a folding machine. Find the smallest number of minutes that is enough to wash, dry and fold all the laundry you have.\nThe only line of the input contains seven integers: *k*,<=*n*1,<=*n*2,<=*n*3,<=*t*1,<=*t*2,<=*t*3 (1<=≤<=*k*<=≤<=104; 1<=≤<=*n*1,<=*n*2,<=*n*3,<=*t*1,<=*t*2,<=*t*3<=≤<=1000).\nPrint one integer — smallest number of minutes to do all your laundry.\nSample Input\n1 1 1 1 5 5 5\n8 4 3 2 10 5 2\n\nSample Output\n15\n32"
+  },
+  {
+    "sample_id": "113083",
+    "question": "The cloth's are not yet placed where they belong, where should we put them?\nA: linen closet\nB: kitchen\nC: on the space heater\nD: fabric store\nE: bedroom"
+  },
+  {
+    "sample_id": "104559",
+    "question": "Read problem statements in [Hindi], [Bengali], [Mandarin Chinese], [Russian], and [Vietnamese] as well.\n\nChef and his friend Magda have $2N$ mutual friends: $N$ of these friends are chefs and the other $N$ are chefettes. The chefs are numbered $1$ through $N$ and the chefettes are (independently) also numbered $1$ through $N$. Since Magda wants their friends to be as happy as possible and to preserve traditional family values, she wants to pair them up in such a way that each chef is paired with exactly one chefette and each chefette with exactly one chef.\n\nThe chefs have heights $A_{1}, A_{2}, \\ldots, A_{N}$ and the chefettes have heights $B_{1}, B_{2}, \\ldots, B_{N}$. For each valid $i, j$, if the $i$-th chef and the $j$-th chefette are paired, they will have exactly one child with height $\\lfloor\\frac{A_{i}+B_{j}}{2}\\rfloor$. Magda wants to pair up the chefs and chefettes in such a way that the sum of heights of all their children ($N$ children in total) is maximum possible. Please help her do that.\n\n------  Input ------\nThe first line of the input contains a single integer $T$ denoting the number of test cases. The description of $T$ test cases follows.\nThe first line of each test case contains a single integer $N$.\nThe second line contains $N$ space-separated integers $A_{1}, A_{2}, \\ldots, A_{N}$.\nThe third line contains $N$ space-separated integers $B_{1}, B_{2}, \\ldots, B_{N}$.\n\n------  Output ------\nPrint a single line containing one integer ― the maximum sum of heights of the children.\n\n------  Constraints ------\n$1 ≤ T ≤ 10$\n$1 ≤ N ≤ 10^{5}$\n$1 ≤ A_{i} ≤ 10^{9}$ for each valid $i$\n$1 ≤ B_{i} ≤ 10^{9}$ for each valid $i$\n\n------  Subtasks ------\nSubtask #1 (40 points): $1 ≤ N ≤ 100$\n\nSubtask #2 (60 points): original constraints\n\n----- Sample Input 1 ------ \n2\n3\n4 5 6\n1 2 3\n5\n4 8 6 4 1\n2 5 7 4 7\n----- Sample Output 1 ------ \n10\n23\n----- explanation 1 ------ \nExample case 1: One possible solution is to pair the first chef with the second chefette, the second chef with the first chefette and the third chef with the third chefette. Their children will have heights $3$, $3$ and $4$, respectively."
+  },
+  {
+    "sample_id": "90912",
+    "question": "Polycarp has created his own training plan to prepare for the programming contests. He will train for n days, all days are numbered from 1 to n, beginning from the first.\n\nOn the i-th day Polycarp will necessarily solve a_i problems. One evening Polycarp plans to celebrate the equator. He will celebrate it on the first evening of such a day that from the beginning of the training and to this day inclusive he will solve half or more of all the problems.\n\nDetermine the index of day when Polycarp will celebrate the equator.\n\nInput\n\nThe first line contains a single integer n (1 ≤ n ≤ 200 000) — the number of days to prepare for the programming contests.\n\nThe second line contains a sequence a_1, a_2, ..., a_n (1 ≤ a_i ≤ 10 000), where a_i equals to the number of problems, which Polycarp will solve on the i-th day.\n\nOutput\n\nPrint the index of the day when Polycarp will celebrate the equator.\n\nExamples\n\nInput\n\n4\n1 3 2 1\n\n\nOutput\n\n2\n\n\nInput\n\n6\n2 2 2 2 2 2\n\n\nOutput\n\n3\n\nNote\n\nIn the first example Polycarp will celebrate the equator on the evening of the second day, because up to this day (inclusive) he will solve 4 out of 7 scheduled problems on four days of the training.\n\nIn the second example Polycarp will celebrate the equator on the evening of the third day, because up to this day (inclusive) he will solve 6 out of 12 scheduled problems on six days of the training."
+  }
+]

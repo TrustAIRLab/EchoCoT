@@ -1,0 +1,42 @@
+[
+  {
+    "sample_id": "181",
+    "question": "A thin spherical insulating shell of radius $R$ carries a uniformly distributed charge such that the potential at its surface is $V_{0}$. A hole with a small area $\\alpha 4 \\pi R^{2}(\\alpha \\ll 1)$ is made on the shell without affecting the rest of the shell. Which one of the following statements is correct?\n\n(A) The potential at the center of the shell is reduced by $2 \\alpha V_{0}$\n\n(B) The magnitude of electric field at the center of the shell is reduced by $\\frac{\\alpha V_{0}}{2 R}$\n\n(C) The ratio of the potential at the center of the shell to that of the point at $\\frac{1}{2} R$ from center towards the hole will be $\\frac{1-\\alpha}{1-2 \\alpha}$\n\n(D) The magnitude of electric field at a point, located on a line passing through the hole and shell's center, on a distance $2 R$ from the center of the spherical shell will be reduced by $\\frac{\\alpha V_{0}}{2 R}$"
+  },
+  {
+    "sample_id": "123",
+    "question": "Two infinitely long straight wires lie in the $x y$-plane along the lines $x= \\pm R$. The wire located at $x=+R$ carries a constant current $I_{1}$ and the wire located at $x=-R$ carries a constant current $I_{2}$. A circular loop of radius $R$ is suspended with its centre at $(0,0, \\sqrt{3} R)$ and in a plane parallel to the $x y$-plane. This loop carries a constant current $I$ in the clockwise direction as seen from above the loop. The current in the wire is taken to be positive if it is in the $+\\hat{j}$ direction. Which of the following statements regarding the magnetic field $\\vec{B}$ is (are) true?\n\n(A) If $I_{1}=I_{2}$, then $\\vec{B}$ cannot be equal to zero at the origin $(0,0,0)$\n\n(B) If $I_{1}>0$ and $I_{2}<0$, then $\\vec{B}$ can be equal to zero at the origin $(0,0,0)$\n\n(C) If $I_{1}<0$ and $I_{2}>0$, then $\\vec{B}$ can be equal to zero at the origin $(0,0,0)$\n\n(D) If $I_{1}=I_{2}$, then the $z$-component of the magnetic field at the centre of the loop is $\\left(-\\frac{\\mu_{0} I}{2 R}\\right)$"
+  },
+  {
+    "sample_id": "81",
+    "question": "What is the sum of the number of lone pairs of electrons on each central atom in the following species?\n\n$\\left[\\mathrm{TeBr}_{6}\\right]^{2-},\\left[\\mathrm{BrF}_{2}\\right]^{+}, \\mathrm{SNF}_{3}$, and $\\left[\\mathrm{XeF}_{3}\\right]^{-}$\n\n(Atomic numbers: $\\mathrm{N}=7, \\mathrm{~F}=9, \\mathrm{~S}=16, \\mathrm{Br}=35, \\mathrm{Te}=52, \\mathrm{Xe}=54$ )"
+  },
+  {
+    "sample_id": "24",
+    "question": "Let $-\\frac{\\pi}{6}<\\theta<-\\frac{\\pi}{12}$. Suppose $\\alpha_{1}$ and $\\beta_{1}$ are the roots of the equation $x^{2}-2 x \\sec \\theta+1=0$ and $\\alpha_{2}$ and $\\beta_{2}$ are the roots of the equation $x^{2}+2 x \\tan \\theta-1=0$. If $\\alpha_{1}>\\beta_{1}$ and $\\alpha_{2}>\\beta_{2}$, then $\\alpha_{1}+\\beta_{2}$ equals\n\n(A) $2(\\sec \\theta-\\tan \\theta)$\n\n(B) $2 \\sec \\theta$\n\n(C) $-2 \\tan \\theta$\n\n(D) 0"
+  },
+  {
+    "sample_id": "110",
+    "question": "If $y=y(x)$ satisfies the differential equation\n\\[\n8 \\sqrt{x}(\\sqrt{9+\\sqrt{x}}) d y=(\\sqrt{4+\\sqrt{9+\\sqrt{x}}})^{-1} d x, \\quad x>0\n\\]\n\nand $y(0)=\\sqrt{7}$, then $y(256)=$\n\n[A] 3\n\n[B] 9\n\n[C] 16\n\n[D] 80"
+  },
+  {
+    "sample_id": "252",
+    "question": "In thermodynamics, the $P-V$ work done is given by\n\n\\[\nw=-\\int d V P_{\\mathrm{ext}}\n\\]\n\nFor a system undergoing a particular process, the work done is,\n\nThis equation is applicable to a\n\n\\[\nw=-\\int d V\\left(\\frac{R T}{V-b}-\\frac{a}{V^{2}}\\right)\n\\]\n\n(A) system that satisfies the van der Waals equation of state.\n\n(B) process that is reversible and isothermal.\n\n(C) process that is reversible and adiabatic.\n\n(D) process that is irreversible and at constant pressure."
+  },
+  {
+    "sample_id": "161",
+    "question": "Consider a hydrogen-like ionized atom with atomic number $Z$ with a single electron. In the emission spectrum of this atom, the photon emitted in the $n=2$ to $n=1$ transition has energy $74.8 \\mathrm{eV}$ higher than the photon emitted in the $n=3$ to $n=2$ transition. The ionization energy of the hydrogen atom is $13.6 \\mathrm{eV}$. What is the value of $Z$?"
+  },
+  {
+    "sample_id": "377",
+    "question": "Let $\\alpha$ be a positive real number. Let $f: \\mathbb{R} \\rightarrow \\mathbb{R}$ and $g:(\\alpha, \\infty) \\rightarrow \\mathbb{R}$ be the functions defined by\n\n\\[\nf(x)=\\sin \\left(\\frac{\\pi x}{12}\\right) \\quad \\text { and } \\quad g(x)=\\frac{2 \\log _{\\mathrm{e}}(\\sqrt{x}-\\sqrt{\\alpha})}{\\log _{\\mathrm{e}}\\left(e^{\\sqrt{x}}-e^{\\sqrt{\\alpha}}\\right)}\n\\]\n\nThen what is the value of $\\lim _{x \\rightarrow \\alpha^{+}} f(g(x))$?"
+  },
+  {
+    "sample_id": "283",
+    "question": "A cubical solid aluminium (bulk modulus $=-V \\frac{d P}{d V}=70 \\mathrm{GPa}$ block has an edge length of 1 m on the surface of the earth. It is kept on the floor of a $5 \\mathrm{~km}$ deep ocean. Taking the average density of water and the acceleration due to gravity to be $10^{3} \\mathrm{~kg} \\mathrm{~m}^{-3}$ and $10 \\mathrm{~ms}^{-2}$, respectively, what is the change in the edge length of the block in $\\mathrm{mm}$?"
+  },
+  {
+    "sample_id": "301",
+    "question": "Let $a$ and $b$ be positive real numbers such that $a>1$ and $b<a$. Let $P$ be a point in the first quadrant that lies on the hyperbola $\\frac{x^{2}}{a^{2}}-\\frac{y^{2}}{b^{2}}=1$. Suppose the tangent to the hyperbola at $P$ passes through the point $(1,0)$, and suppose the normal to the hyperbola at $P$ cuts off equal intercepts on the coordinate axes. Let $\\Delta$ denote the area of the triangle formed by the tangent at $P$, the normal at $P$ and the $x$-axis. If $e$ denotes the eccentricity of the hyperbola, then which of the following statements is/are TRUE?\n\n(A) $1<e<\\sqrt{2}$\n\n(B) $\\sqrt{2}<e<2$\n\n(C) $\\Delta=a^{4}$\n\n(D) $\\Delta=b^{4}$"
+  }
+]

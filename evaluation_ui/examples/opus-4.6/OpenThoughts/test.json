@@ -1,0 +1,42 @@
+[
+  {
+    "sample_id": "91638",
+    "question": "Nikhil got to know about what is a matrice. He made several patterns using 1-d and 2-d matrices. One of which was his favorite pattern. Your task is to right a code for his favorite pattern.\n\nNOTE :- To understand his favorite pattern see the sample output\n\nInput:-\n\nFirst line of code takes number of test cases 'N' as its input. The following N lines take size 'S' of a sqaure matrice as its input.\n\nOutput:-\n\nPrint Nikhils favorite pattern and seperate two different test cases with an empty line.\n\nConstraint:-\n\nN ≤ 10\n\nS ≤ 10\n\nSAMPLE INPUT\n1\r\n3\n\nSAMPLE OUTPUT\n123\r\n894\r\n765"
+  },
+  {
+    "sample_id": "93520",
+    "question": "Himu wants to go on a long drive with his girlfriend. There are N cities numbered from 1 to N, and every city is connected to every other city with bidirectional road. The length of a road is equal to XOR of the city numbers it is connecting. For example the length of road connecting city numbers 8 and 4 is 12. Himu wants this drive to be really long, so he will choose the road having maximum length. Help Himu find out the length of the longest road.\n\nInput:\nFirst line consists of T, the number of test cases.\nSecond line consists of N, the number of cities.\n\nOutput:\nPrint the answer for each test case in a new line.\n\nConstraints:\n1 ≤ T ≤ 10^5\n1 ≤ N ≤ 10^9\n\nSAMPLE INPUT\n1\n3\n\nSAMPLE OUTPUT\n3\n\nExplanation\n\nThere are 3 cities.\nLength of road between city number 1 & 2 = 3\nLength of road between city number 2 & 3 = 1\nLength of road between city number 1 & 3 = 2\nSo, clearly the maximum road length is  3."
+  },
+  {
+    "sample_id": "108995",
+    "question": "You are given a rooted tree with *n* vertices. The vertices are numbered from 1 to *n*, the root is the vertex number 1.\n\nEach vertex has a color, let's denote the color of vertex *v* by *c**v*. Initially *c**v*<==<=0.\n\nYou have to color the tree into the given colors using the smallest possible number of steps. On each step you can choose a vertex *v* and a color *x*, and then color all vectices in the subtree of *v* (including *v* itself) in color *x*. In other words, for every vertex *u*, such that the path from root to *u* passes through *v*, set *c**u*<==<=*x*.\n\nIt is guaranteed that you have to color each vertex in a color different from 0.\n\nYou can learn what a rooted tree is using the link: [https://en.wikipedia.org/wiki/Tree_(graph_theory)](https://en.wikipedia.org/wiki/Tree_(graph_theory)).\nThe first line contains a single integer *n* (2<=≤<=*n*<=≤<=104) — the number of vertices in the tree.\n\nThe second line contains *n*<=-<=1 integers *p*2,<=*p*3,<=...,<=*p**n* (1<=≤<=*p**i*<=&lt;<=*i*), where *p**i* means that there is an edge between vertices *i* and *p**i*.\n\nThe third line contains *n* integers *c*1,<=*c*2,<=...,<=*c**n* (1<=≤<=*c**i*<=≤<=*n*), where *c**i* is the color you should color the *i*-th vertex into.\n\nIt is guaranteed that the given graph is a tree.\nPrint a single integer — the minimum number of steps you have to perform to color the tree into given colors.\nSample Input\n6\n1 2 2 1 5\n2 1 1 1 1 1\n7\n1 1 2 3 1 4\n3 3 1 1 1 2 3\n\nSample Output\n3\n5"
+  },
+  {
+    "sample_id": "37952",
+    "question": "It is said that in the 19th century, every tenth man in Russia was named Ivan, and every twentieth was named Peter. If this is true, then who was more numerous in Russia: Ivan Petrovich or Peter Ivanovich?"
+  },
+  {
+    "sample_id": "108676",
+    "question": "After a terrifying forest fire in Berland a forest rebirth program was carried out. Due to it *N* rows with *M* trees each were planted and the rows were so neat that one could map it on a system of coordinates so that the *j*-th tree in the *i*-th row would have the coordinates of (*i*,<=*j*). However a terrible thing happened and the young forest caught fire. Now we must find the coordinates of the tree that will catch fire last to plan evacuation.\n\nThe burning began in *K* points simultaneously, which means that initially *K* trees started to burn. Every minute the fire gets from the burning trees to the ones that aren’t burning and that the distance from them to the nearest burning tree equals to 1.\n\nFind the tree that will be the last to start burning. If there are several such trees, output any.\nThe first input line contains two integers *N*,<=*M* (1<=≤<=*N*,<=*M*<=≤<=2000) — the size of the forest. The trees were planted in all points of the (*x*,<=*y*) (1<=≤<=*x*<=≤<=*N*,<=1<=≤<=*y*<=≤<=*M*) type, *x* and *y* are integers.\n\nThe second line contains an integer *K* (1<=≤<=*K*<=≤<=10) — amount of trees, burning in the beginning. \n\nThe third line contains *K* pairs of integers: *x*1,<=*y*1,<=*x*2,<=*y*2,<=...,<=*x**k*,<=*y**k* (1<=≤<=*x**i*<=≤<=*N*,<=1<=≤<=*y**i*<=≤<=*M*) — coordinates of the points from which the fire started. It is guaranteed that no two points coincide.\nOutput a line with two space-separated integers *x* and *y* — coordinates of the tree that will be the last one to start burning. If there are several such trees, output any.\nSample Input\n3 3\n1\n2 2\n3 3\n1\n1 1\n3 3\n2\n1 1 3 3\n\nSample Output\n1 1\n3 3\n2 2"
+  },
+  {
+    "sample_id": "93441",
+    "question": "Zucky has a frog Abby. Abby is very hungry and Zucky decides to feed it by playing a little game. Abby is a special frog which can jump as far as it wants but has a special pattern: He starts at the point 0.\nIn his first turn, he can make a jump of 1 unit. Now for all consequent turns, if the frog is currently at a distance x (from the start), his jump will take him x units forward. Given a leaf at a distance  N , you have to find if the frog can reach that leaf or not.\n\n \n\nInput\n\nThe first line of the input contains an integer T denoting the number of test cases.\nEach test case is in a separate line and contains a non-negative integer  N . \n\n\nOutput\n\nFor each test case, output a single line containing  True  if the frog can reach that pillar and print False  otherwise.\n\n\nConstraints\n\n1 ≤ T ≤ 10^5\n0 ≤ N ≤ 10^18\n\n \n\nExample\nInput:\n1\n1\n\nOutput:\nTrue"
+  },
+  {
+    "sample_id": "108460",
+    "question": "You've got array *a*[1],<=*a*[2],<=...,<=*a*[*n*], consisting of *n* integers. Count the number of ways to split all the elements of the array into three contiguous parts so that the sum of elements in each part is the same. \n\nMore formally, you need to find the number of such pairs of indices *i*,<=*j* (2<=≤<=*i*<=≤<=*j*<=≤<=*n*<=-<=1), that .\nThe first line contains integer *n* (1<=≤<=*n*<=≤<=5·105), showing how many numbers are in the array. The second line contains *n* integers *a*[1], *a*[2], ..., *a*[*n*] (|*a*[*i*]|<=≤<=<=109) — the elements of array *a*.\nPrint a single integer — the number of ways to split the array into three parts with the same sum.\nSample Input\n5\n1 2 3 0 3\n4\n0 1 -1 0\n2\n4 1\n\nSample Output\n2\n1\n0"
+  },
+  {
+    "sample_id": "100784",
+    "question": "Given a Binary string st and a number k. You have to find the Longest continuous sequence of '0' after repeating Given string K time.\nExample 1:\nInput: k = 3\nst = 100001\nOutput: 4\nExplaination: The string repeated k times \nbecome 100001100001100001. Here the longest \ncontinuous sequence of 0 is 4.\nExample 2:\nInput: k = 4\nst = 000\nOutput: 12\nExplaination: When st is repeated 4 times \nit become 000000000000. The longest sequence \nbecomes of length 12.\nYour Task:\nYou do not need to read input or print anything. Your task is to complete the function lcsK() which takes k and st as input parameters and returns the length of the longest continuous sequence of 0's after repeating st k times.\nExpected Time Complexity: O(|st|)\nExpected Auxiliary Space: O(1)\nConstraints:\n1 ≤ |st| ≤ 10^{5}\n1 ≤ k ≤ 10^{5}"
+  },
+  {
+    "sample_id": "112302",
+    "question": "What is the amount of copper ions present in a 1.0 mL sample of copper sulfate solution, when a current of 3.0 A for 10 seconds is used for coulometry analysis, assuming 100% efficiency in electrode reactions and a coulombic efficiency of 90%?"
+  },
+  {
+    "sample_id": "110179",
+    "question": "Which taxonomic order should a species belong to if it has the following characteristics: external gills and scaleless skin, three-chambered heart, and cold-blooded nature?"
+  }
+]

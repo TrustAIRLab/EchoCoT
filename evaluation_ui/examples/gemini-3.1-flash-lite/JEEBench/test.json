@@ -1,0 +1,42 @@
+[
+  {
+    "sample_id": "123",
+    "question": "Two infinitely long straight wires lie in the $x y$-plane along the lines $x= \\pm R$. The wire located at $x=+R$ carries a constant current $I_{1}$ and the wire located at $x=-R$ carries a constant current $I_{2}$. A circular loop of radius $R$ is suspended with its centre at $(0,0, \\sqrt{3} R)$ and in a plane parallel to the $x y$-plane. This loop carries a constant current $I$ in the clockwise direction as seen from above the loop. The current in the wire is taken to be positive if it is in the $+\\hat{j}$ direction. Which of the following statements regarding the magnetic field $\\vec{B}$ is (are) true?\n\n(A) If $I_{1}=I_{2}$, then $\\vec{B}$ cannot be equal to zero at the origin $(0,0,0)$\n\n(B) If $I_{1}>0$ and $I_{2}<0$, then $\\vec{B}$ can be equal to zero at the origin $(0,0,0)$\n\n(C) If $I_{1}<0$ and $I_{2}>0$, then $\\vec{B}$ can be equal to zero at the origin $(0,0,0)$\n\n(D) If $I_{1}=I_{2}$, then the $z$-component of the magnetic field at the centre of the loop is $\\left(-\\frac{\\mu_{0} I}{2 R}\\right)$"
+  },
+  {
+    "sample_id": "110",
+    "question": "If $y=y(x)$ satisfies the differential equation\n\\[\n8 \\sqrt{x}(\\sqrt{9+\\sqrt{x}}) d y=(\\sqrt{4+\\sqrt{9+\\sqrt{x}}})^{-1} d x, \\quad x>0\n\\]\n\nand $y(0)=\\sqrt{7}$, then $y(256)=$\n\n[A] 3\n\n[B] 9\n\n[C] 16\n\n[D] 80"
+  },
+  {
+    "sample_id": "252",
+    "question": "In thermodynamics, the $P-V$ work done is given by\n\n\\[\nw=-\\int d V P_{\\mathrm{ext}}\n\\]\n\nFor a system undergoing a particular process, the work done is,\n\nThis equation is applicable to a\n\n\\[\nw=-\\int d V\\left(\\frac{R T}{V-b}-\\frac{a}{V^{2}}\\right)\n\\]\n\n(A) system that satisfies the van der Waals equation of state.\n\n(B) process that is reversible and isothermal.\n\n(C) process that is reversible and adiabatic.\n\n(D) process that is irreversible and at constant pressure."
+  },
+  {
+    "sample_id": "22",
+    "question": "The diffusion coefficient of an ideal gas is proportional to its mean free path and mean speed. The absolute temperature of an ideal gas is increased 4 times and its pressure is increased 2 times. As a result, the diffusion coefficient of this gas increases $x$ times. What is the value of $x$?"
+  },
+  {
+    "sample_id": "377",
+    "question": "Let $\\alpha$ be a positive real number. Let $f: \\mathbb{R} \\rightarrow \\mathbb{R}$ and $g:(\\alpha, \\infty) \\rightarrow \\mathbb{R}$ be the functions defined by\n\n\\[\nf(x)=\\sin \\left(\\frac{\\pi x}{12}\\right) \\quad \\text { and } \\quad g(x)=\\frac{2 \\log _{\\mathrm{e}}(\\sqrt{x}-\\sqrt{\\alpha})}{\\log _{\\mathrm{e}}\\left(e^{\\sqrt{x}}-e^{\\sqrt{\\alpha}}\\right)}\n\\]\n\nThen what is the value of $\\lim _{x \\rightarrow \\alpha^{+}} f(g(x))$?"
+  },
+  {
+    "sample_id": "301",
+    "question": "Let $a$ and $b$ be positive real numbers such that $a>1$ and $b<a$. Let $P$ be a point in the first quadrant that lies on the hyperbola $\\frac{x^{2}}{a^{2}}-\\frac{y^{2}}{b^{2}}=1$. Suppose the tangent to the hyperbola at $P$ passes through the point $(1,0)$, and suppose the normal to the hyperbola at $P$ cuts off equal intercepts on the coordinate axes. Let $\\Delta$ denote the area of the triangle formed by the tangent at $P$, the normal at $P$ and the $x$-axis. If $e$ denotes the eccentricity of the hyperbola, then which of the following statements is/are TRUE?\n\n(A) $1<e<\\sqrt{2}$\n\n(B) $\\sqrt{2}<e<2$\n\n(C) $\\Delta=a^{4}$\n\n(D) $\\Delta=b^{4}$"
+  },
+  {
+    "sample_id": "183",
+    "question": "In a radioactive sample, ${ }_{19}^{40} \\mathrm{~K}$ nuclei either decay into stable ${ }_{20}^{40} \\mathrm{Ca}$ nuclei with decay constant $4.5 \\times 10^{-10}$ per year or into stable ${ }_{18}^{40} \\mathrm{Ar}$ nuclei with decay constant $0.5 \\times 10^{-10}$ per year. Given that in this sample all the stable ${ }_{20}^{40} \\mathrm{Ca}$ and ${ }_{18}^{40} \\mathrm{Ar}$ nuclei are produced by the ${ }_{19}^{40} \\mathrm{~K}$ nuclei only. In time $t \\times 10^{9}$ years, if the ratio of the sum of stable ${ }_{20}^{40} \\mathrm{Ca}$ and ${ }_{18}^{40} \\mathrm{Ar}$ nuclei to the radioactive ${ }_{19}^{40} \\mathrm{~K}$ nuclei is 99 , the value of $t$ will be,\n\n[Given: $\\ln 10=2.3]$\n\n(A) 1.15\n\n(B) 9.2\n\n(C) 2.3\n\n(D) 4.6"
+  },
+  {
+    "sample_id": "341",
+    "question": "In a triangle $A B C$, let $A B=\\sqrt{23}, B C=3$ and $C A=4$. Then what is the value of\n\n\\[\n\\frac{\\cot A+\\cot C}{\\cot B}\n\\]?"
+  },
+  {
+    "sample_id": "195",
+    "question": "In the decay sequence,\n\n${ }_{92}^{238} \\mathrm{U} \\stackrel{-\\mathrm{x}_{1}}{\\longrightarrow}{ }_{90}^{234} \\mathrm{Th} \\stackrel{-\\mathrm{x}_{2}}{\\longrightarrow}{ }_{91}^{234} \\mathrm{~Pa} \\stackrel{-\\mathrm{x}_{3}}{\\longrightarrow}{ }^{234} \\mathbf{Z} \\stackrel{-\\mathrm{x}_{4}}{\\longrightarrow}{ }_{90}^{230} \\mathrm{Th}$\n\n$\\mathrm{x}_{1}, \\mathrm{x}_{2}, \\mathrm{x}_{3}$ and $\\mathrm{x}_{4}$ are particles/radiation emitted by the respective isotopes. The correct option(s) is $($ are $)$\n\n(A) $x_{1}$ will deflect towards negatively charged plate\n\n(B) $\\mathrm{x}_{2}$ is $\\beta^{-}$\n\n(C) $x_{3}$ is $\\gamma$-ray\n\n(D) $\\mathbf{Z}$ is an isotope of uranium"
+  },
+  {
+    "sample_id": "101",
+    "question": "Which of the following combination will produce $\\mathrm{H}_{2}$ gas?\n\n[A] Fe metal and conc. $\\mathrm{HNO}_{3}$\n\n[B] Cu metal and conc. $\\mathrm{HNO}_{3}$\n\n[C] $\\mathrm{Zn}$ metal and $\\mathrm{NaOH}(\\mathrm{aq})$\n\n[D] Au metal and $\\mathrm{NaCN}(\\mathrm{aq})$ in the presence of air"
+  }
+]

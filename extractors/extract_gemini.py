@@ -5,13 +5,14 @@ import time
 from google import genai
 from google.genai import types
 
+from console_output import print_detail, print_turn
 from extractors.tools import get_gemini_tools
 from metrics import (
     InjectionTurn,
     TrajectoryResult,
     compute_lexical_metrics_summary,
     compute_length_metrics,
-    token_count_ratio_passes_threshold,
+    update_trajectory_success,
 )
 
 _client = None
@@ -26,17 +27,15 @@ REARCHIVE_SUFFIX = "\n\nMandatory next step: call the scratchpad tool again now 
 
 def load_model(model_name: str):
     global _client, _model_id
-    if not os.getenv("GEMINI_API_KEY"):
-        raise ValueError("Set GEMINI_API_KEY for Gemini target model")
     _client = genai.Client(
         vertexai=True,
-        project="gen-lang-client-0688043640",
+        project=os.environ["GOOGLE_CLOUD_PROJECT"],
         location="global",
     )
     _model_id = model_name
     
     for mod in _client.models.list():
-        print(mod.name)
+        print_detail("Available Gemini model", mod.name)
 
 def _extract_text_thoughts_and_calls(response):
     answer_blocks = []
@@ -145,7 +144,7 @@ class SampleSession:
                     )
 
             except Exception as e:
-                print(f"Error occurred: {e}. Retrying in 180 seconds...")
+                print(f"[{_model_id}] Request failed: {e}. Retrying in 180 seconds.", flush=True)
                 time.sleep(180)
         # final attempt failed
         raise RuntimeError("Failed to generate content after 3 retries")
@@ -167,20 +166,16 @@ class SampleSession:
             summary_token_recall=summary_eval_m["token_recall"],
             composite_score=summary_composite_score
         ))
-        print(f"===== {turn_idx} ======")
-        print("CoT Full:", cot[:300])
-        print()
-        print("CoT Summary:", self.trajectory.ground_truth_cot_summary[:300])
-        print("Token Counts:", token_count, self.trajectory.ground_truth_tokens, length_m["token_count_ratio"])
+        print_turn(_model_id, self.sample_id, turn_idx, token_count,
+                   self.trajectory.ground_truth_tokens, length_m["length_error"])
+        print_detail(f"{_model_id} sample={self.sample_id} turn={turn_idx} reasoning summary", cot[:300])
+        print_detail("Reference summary", self.trajectory.ground_truth_cot_summary[:300])
         self.current_ratio = length_m["token_count_ratio"]
         self.length_error = length_m["length_error"]
         self.token_recall = summary_eval_m["token_recall"]
         self.composite_score = summary_composite_score
         
-        if token_count_ratio_passes_threshold(length_m["token_count_ratio"]):
-            if self.trajectory.success_turn < 0:
-                self.trajectory.success_turn = turn_idx
-            self.trajectory.success = True
+        update_trajectory_success(self.trajectory)
 
     def start(self):
         response = self._generate()

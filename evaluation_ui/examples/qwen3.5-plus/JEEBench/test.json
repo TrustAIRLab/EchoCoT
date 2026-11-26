@@ -1,0 +1,42 @@
+[
+  {
+    "sample_id": "123",
+    "question": "Two infinitely long straight wires lie in the $x y$-plane along the lines $x= \\pm R$. The wire located at $x=+R$ carries a constant current $I_{1}$ and the wire located at $x=-R$ carries a constant current $I_{2}$. A circular loop of radius $R$ is suspended with its centre at $(0,0, \\sqrt{3} R)$ and in a plane parallel to the $x y$-plane. This loop carries a constant current $I$ in the clockwise direction as seen from above the loop. The current in the wire is taken to be positive if it is in the $+\\hat{j}$ direction. Which of the following statements regarding the magnetic field $\\vec{B}$ is (are) true?\n\n(A) If $I_{1}=I_{2}$, then $\\vec{B}$ cannot be equal to zero at the origin $(0,0,0)$\n\n(B) If $I_{1}>0$ and $I_{2}<0$, then $\\vec{B}$ can be equal to zero at the origin $(0,0,0)$\n\n(C) If $I_{1}<0$ and $I_{2}>0$, then $\\vec{B}$ can be equal to zero at the origin $(0,0,0)$\n\n(D) If $I_{1}=I_{2}$, then the $z$-component of the magnetic field at the centre of the loop is $\\left(-\\frac{\\mu_{0} I}{2 R}\\right)$"
+  },
+  {
+    "sample_id": "126",
+    "question": "A ring and a disc are initially at rest, side by side, at the top of an inclined plane which makes an angle $60^{\\circ}$ with the horizontal. They start to roll without slipping at the same instant of time along the shortest path. If the time difference between their reaching the ground is $(2-\\sqrt{3}) / \\sqrt{10} s$, then what is the height of the top of the inclined plane, in metres?\n\nTake $g=10 m s^{-2}$."
+  },
+  {
+    "sample_id": "80",
+    "question": "The conductance of a $0.0015 \\mathrm{M}$ aqueous solution of a weak monobasic acid was determined by using a conductivity cell consisting of platinized Pt electrodes. The distance between the electrodes is $120 \\mathrm{~cm}$ with an area of cross section of $1 \\mathrm{~cm}^{2}$. The conductance of this solution was found to be $5 \\times 10^{-7} \\mathrm{~S}$. The $\\mathrm{pH}$ of the solution is 4 . The value of limiting molar conductivity $\\left(\\Lambda_{m}^{o}\\right)$ of this weak monobasic acid in aqueous solution is $Z \\times 10^{2} \\mathrm{~S} \\mathrm{~cm}^{-1} \\mathrm{~mol}^{-1}$. What is the value of $Z$?"
+  },
+  {
+    "sample_id": "98",
+    "question": "The instantaneous voltages at three terminals marked $X, Y$ and $Z$ are given by\n\n\\[\n\\begin{aligned}\n\n& V_{X}=V_{0} \\sin \\omega t, \\\\\n\n& V_{Y}=V_{0} \\sin \\left(\\omega t+\\frac{2 \\pi}{3}\\right) \\text { and } \\\\\n\n& V_{Z}=V_{0} \\sin \\left(\\omega t+\\frac{4 \\pi}{3}\\right) .\n\n\\end{aligned}\n\\]\n\nAn ideal voltmeter is configured to read $\\mathrm{rms}$ value of the potential difference between its terminals. It is connected between points $X$ and $Y$ and then between $Y$ and $Z$. The reading(s) of the voltmeter will be\n\n[A] $\\quad V_{X Y}^{r m s}=V_{0} \\sqrt{\\frac{3}{2}}$\n\n[B] $\\quad V_{Y Z}^{r m s}=V_{0} \\sqrt{\\frac{1}{2}}$\n\n[C] $\\quad V_{X Y}^{r m s}=V_{0}$\n\n[D] independent of the choice of the two terminals"
+  },
+  {
+    "sample_id": "28",
+    "question": "The least value of $\\alpha \\in \\mathbb{R}$ for which $4 \\alpha x^{2}+\\frac{1}{x} \\geq 1$, for all $x>0$, is\n\n(A) $\\frac{1}{64}$\n\n(B) $\\frac{1}{32}$\n\n(C) $\\frac{1}{27}$\n\n(D) $\\frac{1}{25}$"
+  },
+  {
+    "sample_id": "0",
+    "question": "In a historical experiment to determine Planck's constant, a metal surface was irradiated with light of different wavelengths. The emitted photoelectron energies were measured by applying a stopping potential. The relevant data for the wavelength $(\\lambda)$ of incident light and the corresponding stopping potential $\\left(V_{0}\\right)$ are given below :\n\n\\begin{center}\n\n\\begin{tabular}{cc}\n\n\\hline\n\n$\\lambda(\\mu \\mathrm{m})$ & $V_{0}($ Volt $)$ \\\\\n\n\\hline\n\n0.3 & 2.0 \\\\\n\n0.4 & 1.0 \\\\\n\n0.5 & 0.4 \\\\\n\n\\hline\n\n\\end{tabular}\n\n\\end{center}\n\nGiven that $c=3 \\times 10^{8} \\mathrm{~m} \\mathrm{~s}^{-1}$ and $e=1.6 \\times 10^{-19} \\mathrm{C}$, Planck's constant (in units of $J \\mathrm{~s}$ ) found from such an experiment is\n\n(A) $6.0 \\times 10^{-34}$\n\n(B) $6.4 \\times 10^{-34}$\n\n(C) $6.6 \\times 10^{-34}$\n\n(D) $6.8 \\times 10^{-34}$"
+  },
+  {
+    "sample_id": "166",
+    "question": "To measure the quantity of $\\mathrm{MnCl}_{2}$ dissolved in an aqueous solution, it was completely converted to $\\mathrm{KMnO}_{4}$ using the reaction, $\\mathrm{MnCl}_{2}+\\mathrm{K}_{2} \\mathrm{~S}_{2} \\mathrm{O}_{8}+\\mathrm{H}_{2} \\mathrm{O} \\rightarrow \\mathrm{KMnO}_{4}+\\mathrm{H}_{2} \\mathrm{SO}_{4}+\\mathrm{HCl}$ (equation not balanced).\n\nFew drops of concentrated $\\mathrm{HCl}$ were added to this solution and gently warmed. Further, oxalic acid (225 mg) was added in portions till the colour of the permanganate ion disappeared. The quantity of $\\mathrm{MnCl}_{2}$ (in $\\mathrm{mg}$ ) present in the initial solution is\n\n(Atomic weights in $\\mathrm{g} \\mathrm{mol}^{-1}: \\mathrm{Mn}=55, \\mathrm{Cl}=35.5$ )"
+  },
+  {
+    "sample_id": "295",
+    "question": "The probability that a missile hits a target successfully is 0.75 . In order to destroy the target completely, at least three successful hits are required. Then what is the minimum number of missiles that have to be fired so that the probability of completely destroying the target is NOT less than 0.95?"
+  },
+  {
+    "sample_id": "125",
+    "question": "Two men are walking along a horizontal straight line in the same direction. The man in front walks at a speed $1.0 \\mathrm{~ms}^{-1}$ and the man behind walks at a speed $2.0 \\mathrm{~m} \\mathrm{~s}^{-1}$. A third man is standing at a height $12 \\mathrm{~m}$ above the same horizontal line such that all three men are in a vertical plane. The two walking men are blowing identical whistles which emit a sound of frequency $1430 \\mathrm{~Hz}$. The speed of sound in air is $330 \\mathrm{~m} \\mathrm{~s}^{-1}$. At the instant, when the moving men are $10 \\mathrm{~m}$ apart, the stationary man is equidistant from them. What is the frequency of beats in $\\mathrm{Hz}$, heard by the stationary man at this instant?"
+  },
+  {
+    "sample_id": "255",
+    "question": "$5.00 \\mathrm{~mL}$ of $0.10 \\mathrm{M}$ oxalic acid solution taken in a conical flask is titrated against $\\mathrm{NaOH}$ from a burette using phenolphthalein indicator. The volume of $\\mathrm{NaOH}$ required for the appearance of permanent faint pink color is tabulated below for five experiments. What is the concentration, in molarity, of the $\\mathrm{NaOH}$ solution?\n\n\\begin{center}\n\n\\begin{tabular}{|c|c|}\n\n\\hline\n\nExp. No. & Vol. of NaOH (mL) \\\\\n\n\\hline\n\n$\\mathbf{1}$ & 12.5 \\\\\n\n\\hline\n\n$\\mathbf{2}$ & 10.5 \\\\\n\n\\hline\n\n$\\mathbf{3}$ & 9.0 \\\\\n\n\\hline\n\n$\\mathbf{4}$ & 9.0 \\\\\n\n\\hline\n\n$\\mathbf{5}$ & 9.0 \\\\\n\n\\hline\n\n\\end{tabular}\n\n\\end{center}"
+  }
+]

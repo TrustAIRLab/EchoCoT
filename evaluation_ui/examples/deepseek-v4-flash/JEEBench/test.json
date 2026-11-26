@@ -1,0 +1,42 @@
+[
+  {
+    "sample_id": "181",
+    "question": "A thin spherical insulating shell of radius $R$ carries a uniformly distributed charge such that the potential at its surface is $V_{0}$. A hole with a small area $\\alpha 4 \\pi R^{2}(\\alpha \\ll 1)$ is made on the shell without affecting the rest of the shell. Which one of the following statements is correct?\n\n(A) The potential at the center of the shell is reduced by $2 \\alpha V_{0}$\n\n(B) The magnitude of electric field at the center of the shell is reduced by $\\frac{\\alpha V_{0}}{2 R}$\n\n(C) The ratio of the potential at the center of the shell to that of the point at $\\frac{1}{2} R$ from center towards the hole will be $\\frac{1-\\alpha}{1-2 \\alpha}$\n\n(D) The magnitude of electric field at a point, located on a line passing through the hole and shell's center, on a distance $2 R$ from the center of the spherical shell will be reduced by $\\frac{\\alpha V_{0}}{2 R}$"
+  },
+  {
+    "sample_id": "360",
+    "question": "The reaction of $\\mathrm{K}_3\\left[\\mathrm{Fe}(\\mathrm{CN})_6\\right]$ with freshly prepared $\\mathrm{FeSO}_4$ solution produces a dark blue precipitate called Turnbull's blue. Reaction of $\\mathrm{K}_4\\left[\\mathrm{Fe}(\\mathrm{CN})_6\\right]$ with the $\\mathrm{FeSO}_4$ solution in complete absence of air produces a white precipitate $\\mathbf{X}$, which turns blue in air. Mixing the $\\mathrm{FeSO}_4$ solution with $\\mathrm{NaNO}_3$, followed by a slow addition of concentrated $\\mathrm{H}_2 \\mathrm{SO}_4$ through the side of the test tube produces a brown ring. Precipitate $\\mathbf{X}$ is\n\n(A) $\\mathrm{Fe}_{4}\\left[\\mathrm{Fe}(\\mathrm{CN})_{6}\\right]_{3}$\n\n(B) $\\mathrm{Fe}\\left[\\mathrm{Fe}(\\mathrm{CN})_{6}\\right]$\n\n(C) $\\mathrm{K}_{2} \\mathrm{Fe}\\left[\\mathrm{Fe}(\\mathrm{CN})_{6}\\right]$\n\n(D) $\\mathrm{KFe}\\left[\\mathrm{Fe}(\\mathrm{CN})_{6}\\right]$"
+  },
+  {
+    "sample_id": "24",
+    "question": "Let $-\\frac{\\pi}{6}<\\theta<-\\frac{\\pi}{12}$. Suppose $\\alpha_{1}$ and $\\beta_{1}$ are the roots of the equation $x^{2}-2 x \\sec \\theta+1=0$ and $\\alpha_{2}$ and $\\beta_{2}$ are the roots of the equation $x^{2}+2 x \\tan \\theta-1=0$. If $\\alpha_{1}>\\beta_{1}$ and $\\alpha_{2}>\\beta_{2}$, then $\\alpha_{1}+\\beta_{2}$ equals\n\n(A) $2(\\sec \\theta-\\tan \\theta)$\n\n(B) $2 \\sec \\theta$\n\n(C) $-2 \\tan \\theta$\n\n(D) 0"
+  },
+  {
+    "sample_id": "110",
+    "question": "If $y=y(x)$ satisfies the differential equation\n\\[\n8 \\sqrt{x}(\\sqrt{9+\\sqrt{x}}) d y=(\\sqrt{4+\\sqrt{9+\\sqrt{x}}})^{-1} d x, \\quad x>0\n\\]\n\nand $y(0)=\\sqrt{7}$, then $y(256)=$\n\n[A] 3\n\n[B] 9\n\n[C] 16\n\n[D] 80"
+  },
+  {
+    "sample_id": "252",
+    "question": "In thermodynamics, the $P-V$ work done is given by\n\n\\[\nw=-\\int d V P_{\\mathrm{ext}}\n\\]\n\nFor a system undergoing a particular process, the work done is,\n\nThis equation is applicable to a\n\n\\[\nw=-\\int d V\\left(\\frac{R T}{V-b}-\\frac{a}{V^{2}}\\right)\n\\]\n\n(A) system that satisfies the van der Waals equation of state.\n\n(B) process that is reversible and isothermal.\n\n(C) process that is reversible and adiabatic.\n\n(D) process that is irreversible and at constant pressure."
+  },
+  {
+    "sample_id": "161",
+    "question": "Consider a hydrogen-like ionized atom with atomic number $Z$ with a single electron. In the emission spectrum of this atom, the photon emitted in the $n=2$ to $n=1$ transition has energy $74.8 \\mathrm{eV}$ higher than the photon emitted in the $n=3$ to $n=2$ transition. The ionization energy of the hydrogen atom is $13.6 \\mathrm{eV}$. What is the value of $Z$?"
+  },
+  {
+    "sample_id": "377",
+    "question": "Let $\\alpha$ be a positive real number. Let $f: \\mathbb{R} \\rightarrow \\mathbb{R}$ and $g:(\\alpha, \\infty) \\rightarrow \\mathbb{R}$ be the functions defined by\n\n\\[\nf(x)=\\sin \\left(\\frac{\\pi x}{12}\\right) \\quad \\text { and } \\quad g(x)=\\frac{2 \\log _{\\mathrm{e}}(\\sqrt{x}-\\sqrt{\\alpha})}{\\log _{\\mathrm{e}}\\left(e^{\\sqrt{x}}-e^{\\sqrt{\\alpha}}\\right)}\n\\]\n\nThen what is the value of $\\lim _{x \\rightarrow \\alpha^{+}} f(g(x))$?"
+  },
+  {
+    "sample_id": "283",
+    "question": "A cubical solid aluminium (bulk modulus $=-V \\frac{d P}{d V}=70 \\mathrm{GPa}$ block has an edge length of 1 m on the surface of the earth. It is kept on the floor of a $5 \\mathrm{~km}$ deep ocean. Taking the average density of water and the acceleration due to gravity to be $10^{3} \\mathrm{~kg} \\mathrm{~m}^{-3}$ and $10 \\mathrm{~ms}^{-2}$, respectively, what is the change in the edge length of the block in $\\mathrm{mm}$?"
+  },
+  {
+    "sample_id": "63",
+    "question": "Let $f:\\left[-\\frac{1}{2}, 2\\right] \\rightarrow \\mathbb{R}$ and $g:\\left[-\\frac{1}{2}, 2\\right] \\rightarrow \\mathbb{R}$ be functions defined by $f(x)=\\left[x^{2}-3\\right]$ and $g(x)=|x| f(x)+|4 x-7| f(x)$, where $[y]$ denotes the greatest integer less than or equal to $y$ for $y \\in \\mathbb{R}$. Then\n\n(A) $f$ is discontinuous exactly at three points in $\\left[-\\frac{1}{2}, 2\\right]$\n\n(B) $f$ is discontinuous exactly at four points in $\\left[-\\frac{1}{2}, 2\\right]$\n\n(C) $g$ is NOT differentiable exactly at four points in $\\left(-\\frac{1}{2}, 2\\right)$\n\n(D) $g$ is NOT differentiable exactly at five points in $\\left(-\\frac{1}{2}, 2\\right)$"
+  },
+  {
+    "sample_id": "183",
+    "question": "In a radioactive sample, ${ }_{19}^{40} \\mathrm{~K}$ nuclei either decay into stable ${ }_{20}^{40} \\mathrm{Ca}$ nuclei with decay constant $4.5 \\times 10^{-10}$ per year or into stable ${ }_{18}^{40} \\mathrm{Ar}$ nuclei with decay constant $0.5 \\times 10^{-10}$ per year. Given that in this sample all the stable ${ }_{20}^{40} \\mathrm{Ca}$ and ${ }_{18}^{40} \\mathrm{Ar}$ nuclei are produced by the ${ }_{19}^{40} \\mathrm{~K}$ nuclei only. In time $t \\times 10^{9}$ years, if the ratio of the sum of stable ${ }_{20}^{40} \\mathrm{Ca}$ and ${ }_{18}^{40} \\mathrm{Ar}$ nuclei to the radioactive ${ }_{19}^{40} \\mathrm{~K}$ nuclei is 99 , the value of $t$ will be,\n\n[Given: $\\ln 10=2.3]$\n\n(A) 1.15\n\n(B) 9.2\n\n(C) 2.3\n\n(D) 4.6"
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "sample_id": "181",
+    "question": "A thin spherical insulating shell of radius $R$ carries a uniformly distributed charge such that the potential at its surface is $V_{0}$. A hole with a small area $\\alpha 4 \\pi R^{2}(\\alpha \\ll 1)$ is made on the shell without affecting the rest of the shell. Which one of the following statements is correct?\n\n(A) The potential at the center of the shell is reduced by $2 \\alpha V_{0}$\n\n(B) The magnitude of electric field at the center of the shell is reduced by $\\frac{\\alpha V_{0}}{2 R}$\n\n(C) The ratio of the potential at the center of the shell to that of the point at $\\frac{1}{2} R$ from center towards the hole will be $\\frac{1-\\alpha}{1-2 \\alpha}$\n\n(D) The magnitude of electric field at a point, located on a line passing through the hole and shell's center, on a distance $2 R$ from the center of the spherical shell will be reduced by $\\frac{\\alpha V_{0}}{2 R}$"
+  },
+  {
+    "sample_id": "360",
+    "question": "The reaction of $\\mathrm{K}_3\\left[\\mathrm{Fe}(\\mathrm{CN})_6\\right]$ with freshly prepared $\\mathrm{FeSO}_4$ solution produces a dark blue precipitate called Turnbull's blue. Reaction of $\\mathrm{K}_4\\left[\\mathrm{Fe}(\\mathrm{CN})_6\\right]$ with the $\\mathrm{FeSO}_4$ solution in complete absence of air produces a white precipitate $\\mathbf{X}$, which turns blue in air. Mixing the $\\mathrm{FeSO}_4$ solution with $\\mathrm{NaNO}_3$, followed by a slow addition of concentrated $\\mathrm{H}_2 \\mathrm{SO}_4$ through the side of the test tube produces a brown ring. Precipitate $\\mathbf{X}$ is\n\n(A) $\\mathrm{Fe}_{4}\\left[\\mathrm{Fe}(\\mathrm{CN})_{6}\\right]_{3}$\n\n(B) $\\mathrm{Fe}\\left[\\mathrm{Fe}(\\mathrm{CN})_{6}\\right]$\n\n(C) $\\mathrm{K}_{2} \\mathrm{Fe}\\left[\\mathrm{Fe}(\\mathrm{CN})_{6}\\right]$\n\n(D) $\\mathrm{KFe}\\left[\\mathrm{Fe}(\\mathrm{CN})_{6}\\right]$"
+  },
+  {
+    "sample_id": "183",
+    "question": "In a radioactive sample, ${ }_{19}^{40} \\mathrm{~K}$ nuclei either decay into stable ${ }_{20}^{40} \\mathrm{Ca}$ nuclei with decay constant $4.5 \\times 10^{-10}$ per year or into stable ${ }_{18}^{40} \\mathrm{Ar}$ nuclei with decay constant $0.5 \\times 10^{-10}$ per year. Given that in this sample all the stable ${ }_{20}^{40} \\mathrm{Ca}$ and ${ }_{18}^{40} \\mathrm{Ar}$ nuclei are produced by the ${ }_{19}^{40} \\mathrm{~K}$ nuclei only. In time $t \\times 10^{9}$ years, if the ratio of the sum of stable ${ }_{20}^{40} \\mathrm{Ca}$ and ${ }_{18}^{40} \\mathrm{Ar}$ nuclei to the radioactive ${ }_{19}^{40} \\mathrm{~K}$ nuclei is 99 , the value of $t$ will be,\n\n[Given: $\\ln 10=2.3]$\n\n(A) 1.15\n\n(B) 9.2\n\n(C) 2.3\n\n(D) 4.6"
+  },
+  {
+    "sample_id": "491",
+    "question": "Let $S$ be the set of all twice differentiable functions $f$ from $\\mathbb{R}$ to $\\mathbb{R}$ such that $\\frac{d^{2} f}{d x^{2}}(x)>0$ for all $x \\in(-1,1)$. For $f \\in S$, let $X_{f}$ be the number of points $x \\in(-1,1)$ for which $f(x)=x$. Then which of the following statements is(are) true?\n\n\n\n(A) There exists a function $f \\in S$ such that $X_{f}=0$\n\n\n\n(B) For every function $f \\in S$, we have $X_{f} \\leq 2$\n\n\n\n(C) There exists a function $f \\in S$ such that $X_{f}=2$\n\n\n\n(D) There does NOT exist any function $f$ in $S$ such that $X_{f}=1$"
+  },
+  {
+    "sample_id": "195",
+    "question": "In the decay sequence,\n\n${ }_{92}^{238} \\mathrm{U} \\stackrel{-\\mathrm{x}_{1}}{\\longrightarrow}{ }_{90}^{234} \\mathrm{Th} \\stackrel{-\\mathrm{x}_{2}}{\\longrightarrow}{ }_{91}^{234} \\mathrm{~Pa} \\stackrel{-\\mathrm{x}_{3}}{\\longrightarrow}{ }^{234} \\mathbf{Z} \\stackrel{-\\mathrm{x}_{4}}{\\longrightarrow}{ }_{90}^{230} \\mathrm{Th}$\n\n$\\mathrm{x}_{1}, \\mathrm{x}_{2}, \\mathrm{x}_{3}$ and $\\mathrm{x}_{4}$ are particles/radiation emitted by the respective isotopes. The correct option(s) is $($ are $)$\n\n(A) $x_{1}$ will deflect towards negatively charged plate\n\n(B) $\\mathrm{x}_{2}$ is $\\beta^{-}$\n\n(C) $x_{3}$ is $\\gamma$-ray\n\n(D) $\\mathbf{Z}$ is an isotope of uranium"
+  },
+  {
+    "sample_id": "101",
+    "question": "Which of the following combination will produce $\\mathrm{H}_{2}$ gas?\n\n[A] Fe metal and conc. $\\mathrm{HNO}_{3}$\n\n[B] Cu metal and conc. $\\mathrm{HNO}_{3}$\n\n[C] $\\mathrm{Zn}$ metal and $\\mathrm{NaOH}(\\mathrm{aq})$\n\n[D] Au metal and $\\mathrm{NaCN}(\\mathrm{aq})$ in the presence of air"
+  },
+  {
+    "sample_id": "46",
+    "question": "In an experiment to determine the acceleration due to gravity $g$, the formula used for the time period of a periodic motion is $T=2 \\pi \\sqrt{\\frac{7(R-r)}{5 g}}$. The values of $R$ and $r$ are measured to be $(60 \\pm 1) \\mathrm{mm}$ and $(10 \\pm 1) \\mathrm{mm}$, respectively. In five successive measurements, the time period is found to be $0.52 \\mathrm{~s}, 0.56 \\mathrm{~s}, 0.57 \\mathrm{~s}, 0.54 \\mathrm{~s}$ and $0.59 \\mathrm{~s}$. The least count of the watch used for the measurement of time period is $0.01 \\mathrm{~s}$. Which of the following statement(s) is(are) true?\n\n(A) The error in the measurement of $r$ is $10 \\%$\n\n(B) The error in the measurement of $T$ is $3.57 \\%$\n\n(C) The error in the measurement of $T$ is $2 \\%$\n\n(D) The error in the determined value of $g$ is $11 \\%$"
+  },
+  {
+    "sample_id": "473",
+    "question": "A person of height $1.6 \\mathrm{~m}$ is walking away from a lamp post of height $4 \\mathrm{~m}$ along a straight path on the flat ground. The lamp post and the person are always perpendicular to the ground. If the speed of the person is $60 \\mathrm{~cm} \\mathrm{~s}^{-1}$, then what is the speed of the tip of the person's shadow on the ground with respect to the person in $\\mathrm{cm} \\mathrm{s}^{-1}$?"
+  },
+  {
+    "sample_id": "47",
+    "question": "Consider two identical galvanometers and two identical resistors with resistance $R$. If the internal resistance of the galvanometers $R_{\\mathrm{C}}<R / 2$, which of the following statement(s) about any one of the galvanometers is(are) true?\n\n(A) The maximum voltage range is obtained when all the components are connected in series\n\n(B) The maximum voltage range is obtained when the two resistors and one galvanometer are connected in series, and the second galvanometer is connected in parallel to the first galvanometer\n\n(C) The maximum current range is obtained when all the components are connected in parallel\n\n(D) The maximum current range is obtained when the two galvanometers are connected in series and the combination is connected in parallel with both the resistors"
+  },
+  {
+    "sample_id": "122",
+    "question": "A uniform capillary tube of inner radius $r$ is dipped vertically into a beaker filled with water. The water rises to a height $h$ in the capillary tube above the water surface in the beaker. The surface tension of water is $\\sigma$. The angle of contact between water and the wall of the capillary tube is $\\theta$. Ignore the mass of water in the meniscus. Which of the following statements is (are) true?\n\n(A) For a given material of the capillary tube, $h$ decreases with increase in $r$\n\n(B) For a given material of the capillary tube, $h$ is independent of $\\sigma$\n\n(C) If this experiment is performed in a lift going up with a constant acceleration, then $h$ decreases\n\n(D) $h$ is proportional to contact angle $\\theta$"
+  }
+]

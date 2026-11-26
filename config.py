@@ -14,16 +14,16 @@ TARGET_MODEL_OPTIONS = {
             "length_only": "prompts.standard_length_only",
             "length_lexical": "prompts.standard_length_lexical",
         },
-        "notes": "DeepSeek 2026-04 target hosted by OpenRouter",
+        "notes": "DeepSeek V4 Flash hosted by OpenRouter",
     },
-    "deepseek-v4-pro": {
-        "model": "deepseek-v4-pro",
+    "deepseek-v4-flash-20261017": {
+        "model": "deepseek-flash",
         "extractor": "extractors.extract_deepseek_official",
         "prompts": {
-            "length_only": "prompts.deepseek_length_only",
-            "length_lexical": "prompts.deepseek_length_lexical",
+            "length_only": "prompts.new_deepseek_length_only",
+            "length_lexical": "prompts.new_deepseek_length_lexical",
         },
-        "notes": "DeepSeek 2026-07 target hosted by the official API",
+        "notes": "DeepSeek V4.1 Flash 1017 via the official API (deepseek-flash)",
     },
     "glm-5.2": {
         "model": "glm-5.2",
@@ -70,7 +70,7 @@ TARGET_MODEL_OPTIONS = {
         },
         "notes": "Gemini 3.5 Flash",
     },
-    "claude-4.6": {
+    "opus-4.6": {
         "model": "claude-opus-4-6",
         "extractor": "extractors.extract_claude",
         "prompts": {
@@ -114,51 +114,16 @@ def get_prompt_module(target_model_key: str, mode: str) -> str:
 # Optimizer models (API-based)
 #   api_type: "chat"      → client.chat.completions.create  (DeepSeek, GPT-4.1)
 #             "responses"  → client.responses.create          (o4-mini and other reasoning models)
+#             "vertex"     → client.models.generate_content   (Gemini on Vertex AI)
 # ---------------------------------------------------------------------------
 
 OPTIMIZER_MODEL_OPTIONS = {
-    "deepseek-reasoner": {
-        "provider": "DeepSeek", "model": "deepseek-reasoner",
-        "base_url": "https://api.deepseek.com",
-        "api_key_env": "DEEPSEEK_API_KEY", "api_type": "chat",
-        "notes": "DeepSeek R1 reasoning — default optimizer",
-    },
-    "deepseek-chat": {
-        "provider": "DeepSeek", "model": "deepseek-chat",
-        "base_url": "https://api.deepseek.com",
-        "api_key_env": "DEEPSEEK_API_KEY", "api_type": "chat",
-        "notes": "DeepSeek V3.2 chat — faster optimizer",
-    },
-    "o4-mini": {
-        "provider": "OpenAI", "model": "o4-mini",
-        "base_url": None, "api_key_env": "OPENAI_API_KEY",
-        "api_type": "responses",
-        "notes": "OpenAI o4-mini — reasoning optimizer",
-    },
-    "gpt-4.1-mini": {
-        "provider": "OpenAI", "model": "gpt-4.1-mini",
-        "base_url": None, "api_key_env": "OPENAI_API_KEY",
-        "api_type": "chat",
-        "notes": "OpenAI GPT-4.1 Mini — fast optimizer",
-    },
-    "gpt-4.1": {
-        "provider": "OpenAI", "model": "gpt-4.1",
-        "base_url": None, "api_key_env": "OPENAI_API_KEY",
-        "api_type": "chat",
-        "notes": "OpenAI GPT-4.1 — strong optimizer",
-    },
     "gemini-2.5-flash": {
-        "provider": "Google", "model": "gemini-2.5-flash",
-        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "api_key_env": "GEMINI_API_KEY", "api_type": "chat",
-        "notes": "Google Gemini 2.5 Flash — fast optimizer",
-    },
-    "gemini-2.5-pro": {
-        "provider": "Google", "model": "gemini-2.5-pro",
-        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "api_key_env": "GEMINI_API_KEY", "api_type": "chat",
-        "notes": "Google Gemini 2.5 Pro — strong optimizer",
-    },
+        "provider": "Vertex AI", "model": "gemini-2.5-flash",
+        "project": os.getenv("GOOGLE_CLOUD_PROJECT"), "location": "global",
+        "api_type": "vertex",
+        "notes": "Gemini 2.5 Flash optimizer via Vertex AI",
+    }
 }
 
 # ---------------------------------------------------------------------------
@@ -170,9 +135,9 @@ MAX_BATCHES = 100
 EARLY_STOP_PATIENCE = 10
 MAX_INJECTION_TURNS = 3
 
-# Training inner-loop target range for token_count_ratio
-RATIO_LOWER_BOUND = 0.90
-RATIO_UPPER_BOUND = 1.10
+# Extraction success thresholds; training frac_in_target uses length only.
+LENGTH_ERROR_THRESHOLD = 0.1
+TOKEN_EM_THRESHOLD = 0.9
 
 DEFAULT_MODE = "length_lexical"
 SUMMARY_MODEL = "gpt-4.1-mini"
@@ -186,5 +151,5 @@ DEFAULT_OPTIMIZER_MODEL = "gemini-2.5-flash"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(_HERE, "data")
-OUTPUT_DIR = os.path.join(_HERE, "results_ablation")
+OUTPUT_DIR = os.path.join(_HERE, "outputs")
 SUMMARY_PROMPT_FILE = os.path.join(_HERE, "data/summarize_prompt.txt")
